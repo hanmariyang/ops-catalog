@@ -127,6 +127,9 @@ CORS_ALLOWED_ORIGINS = config(
     cast=Csv(),
 )
 CORS_ALLOW_CREDENTIALS = True
+# 기본 허용 헤더 + 매니저 토큰 (D15)
+from corsheaders.defaults import default_headers  # noqa: E402
+CORS_ALLOW_HEADERS = (*default_headers, "x-manage-token")
 
 # ── 보안 (production) ──────────────────────────
 if not DEBUG:

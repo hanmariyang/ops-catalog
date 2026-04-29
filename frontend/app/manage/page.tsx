@@ -2,10 +2,14 @@
  * 매니저 액션 페이지 (D15) — hidden token URL.
  *
  * 사용: /manage?token=<MANAGE_TOKEN>
- *
- * MVP 에선 안내·링크 모음 정도. 실제 액션은 Django admin (http://localhost:8002/admin) 또는
- * 후속에서 이 페이지에 form/api 연결.
+ * - 신규 카탈로그 항목 생성 폼
+ * - 카탈로그 / Django admin 으로의 빠른 링크
  */
+
+import Link from "next/link";
+
+import { CreateForm } from "@/components/CreateForm";
+import { listCategories } from "@/lib/api";
 
 type SearchParams = { token?: string };
 
@@ -17,8 +21,6 @@ export default async function ManagePage({
   const sp = await searchParams;
   const token = sp.token || "";
   const expected = process.env.MANAGE_TOKEN || "";
-
-  // 서버사이드 비교 (브라우저로 expected 가 새지 않음 — env 는 NEXT_PUBLIC_ 아님)
   const ok = !!expected && token === expected;
 
   if (!ok) {
@@ -35,33 +37,44 @@ export default async function ManagePage({
     );
   }
 
+  const categoriesRes = await listCategories();
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
+
   return (
-    <div className="max-w-3xl mx-auto py-6">
+    <div className="max-w-4xl mx-auto py-2">
       <div className="text-xs font-bold text-haro-600 tracking-wider">MANAGER MODE</div>
-      <h1 className="text-2xl font-bold mt-1">매니저 액션</h1>
+      <div className="flex items-baseline gap-3">
+        <h1 className="text-2xl font-bold mt-1">매니저 액션</h1>
+        <Link
+          href={`/?token=${token}`}
+          className="text-xs text-haro-600 hover:underline"
+        >
+          ← 카탈로그 (매니저 모드)
+        </Link>
+      </div>
       <p className="text-sm text-slate-500 mt-2">
-        D15 — 인증 도입 전 hidden token URL 로 임시 운영. 모든 write 액션은 매니저만.
+        D15 — 인증 도입 전 hidden token URL. 모든 write 액션은 매니저만.
       </p>
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-2">
+      <section className="mt-6 grid gap-3 sm:grid-cols-2">
         <Card
           title="Django Admin"
-          description="카탈로그 항목·카테고리·평가·이력 직접 편집. 가장 빠른 매니저 인터페이스."
-          href="http://localhost:8002/admin"
+          description="카테고리·평가·이력 등 모든 모델 직접 편집."
+          href={`${apiBase}/admin`}
         />
         <Card
           title="API — 단계 승급/강등"
           description={`POST /api/v1/projects/{id}/advance-stage/\nheaders: { "X-Manage-Token": "..." }`}
         />
-        <Card
-          title="엑셀 import (1회)"
-          description="컨테이너에서 'python manage.py import_pocketman --xlsx <path>' 실행. 이미 import 됐다면 update 모드."
-        />
-        <Card
-          title="향후 (인증 도입 후)"
-          description="이 페이지가 /dashboard 로 자연 승격. URL 깨지지 않게 route 만 비워둠."
-        />
       </section>
+
+      <div className="mt-8">
+        <CreateForm categories={categoriesRes.results} manageToken={token} />
+      </div>
+
+      <div className="mt-6 text-xs text-slate-500">
+        💡 기존 항목 수정은 카탈로그 → 카드 클릭 → 상세 페이지의 인라인 편집 폼.
+      </div>
     </div>
   );
 }

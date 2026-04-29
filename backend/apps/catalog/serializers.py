@@ -72,6 +72,32 @@ class ProjectListSerializer(serializers.ModelSerializer):
         return obj.display_proposer
 
 
+class ProjectWriteSerializer(serializers.ModelSerializer):
+    """매니저 create/update 용 — 모든 가변 필드 노출."""
+
+    class Meta:
+        model = Project
+        fields = [
+            "source_id",
+            "title",
+            "description",
+            "proposer",
+            "proposer_email",
+            "org",
+            "impact_scope",
+            "manual_minutes",
+            "monthly_uses",
+            "priority",
+            "category",
+            "difficulty",
+            "deploy_intent",
+            "stage",
+            "status",
+            "result_url",
+            "name_public",
+        ]
+
+
 class ProjectDetailSerializer(serializers.ModelSerializer):
     """상세 페이지용 — 원문 박제 영역 + 평가 영역 + 추천 단계."""
 

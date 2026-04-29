@@ -8,7 +8,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getProject } from "@/lib/api";
+import { getProject, listCategories } from "@/lib/api";
+import { EditForm } from "@/components/EditForm";
 import {
   DIFFICULTY_LABEL,
   PRIORITY_COLOR,
@@ -16,27 +17,39 @@ import {
   STAGE_LABEL,
   STATUS_LABEL,
   TIER_COLOR,
-  TIER_LABEL,
 } from "@/lib/labels";
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
   const { id } = await params;
+  const { token } = await searchParams;
+  const expected = process.env.MANAGE_TOKEN || "";
+  const manageToken = expected && token === expected ? token : "";
+
   let p;
   try {
     p = await getProject(Number(id));
   } catch {
     notFound();
   }
+  const categoriesRes = manageToken ? await listCategories() : null;
 
+  const homeBack = manageToken ? `/?token=${manageToken}` : "/";
   return (
     <div className="max-w-4xl mx-auto">
-      <Link href="/" className="text-xs text-haro-600 hover:underline">
+      <Link href={homeBack} className="text-xs text-haro-600 hover:underline">
         ← 카탈로그로
       </Link>
+      {manageToken && (
+        <span className="ml-3 text-xs text-haro-600 font-semibold bg-haro-50 px-2 py-0.5 rounded">
+          매니저 모드 ON
+        </span>
+      )}
 
       <div className="mt-3 flex items-center gap-2">
         <span className={`text-xs font-bold px-2 py-0.5 rounded ${TIER_COLOR[p.tier]}`}>
@@ -84,6 +97,11 @@ export default async function ProjectDetailPage({
           <Field label="결과 링크" value={p.result_url || "—"} />
         </dl>
       </section>
+
+      {/* 매니저 편집 폼 (token 있을 때만) */}
+      {manageToken && categoriesRes && (
+        <EditForm project={p} categories={categoriesRes.results} manageToken={manageToken} />
+      )}
 
       {/* 단계 변동 이력 */}
       {p.stage_transitions.length > 0 && (

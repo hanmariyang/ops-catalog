@@ -14,6 +14,7 @@ from apps.catalog.serializers import (
     CategorySerializer,
     ProjectDetailSerializer,
     ProjectListSerializer,
+    ProjectWriteSerializer,
 )
 
 
@@ -48,6 +49,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "list":
             return ProjectListSerializer
+        if self.action in ("create", "update", "partial_update"):
+            return ProjectWriteSerializer
         return ProjectDetailSerializer
 
     def get_queryset(self):
@@ -77,7 +80,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
         # 익명 write 차단 (D15·OQ2). 매니저 토큰만 허용.
         if not self._check_manage(request):
             return Response({"detail": "manager only"}, status=status.HTTP_403_FORBIDDEN)
-        return super().create(request, *args, **kwargs)
+        # source_id 미지정 시 자동 부여 (max + 1, 1000 이상은 시스템 생성)
+        data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+        if not data.get("source_id"):
+            from apps.catalog.models import Project as P
+            existing_max = P.objects.order_by("-source_id").values_list("source_id", flat=True).first() or 0
+            data["source_id"] = max(existing_max, 999) + 1
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def destroy(self, request, *args, **kwargs):
         if not self._check_manage(request):

@@ -12,19 +12,32 @@ from apps.catalog.models import Difficulty, Priority, Project, Stage
 def suggest_stage(project: Project) -> int:
     """priority + difficulty + deploy_intent → 추천 단계 (1/2/3).
 
-    룰 (HM-26 v3):
-    - 3단계: P0 + 난이도 높음 + 배포 의도 True
-    - 2단계: P0/P1 + 난이도 낮음 + 배포 의도 False
-    - 1단계: 그 외 (default — P2/P3 또는 미평가 포함)
+    룰 (HM-26 v3 + priority-only fallback):
+    - 평가 완료 시:
+      - 3단계: P0 + 난이도 높음 + 배포 의도 True
+      - 2단계: P0/P1 + 난이도 낮음 + 배포 의도 False
+    - 미평가(difficulty=unset) 시 priority fallback:
+      - 3단계: P0 (먼저 분배 — 인솔파 우선 검토 후보)
+      - 2단계: P1
+      - 1단계: P2 / P3 / 미지정
     """
     p = project.priority
     d = project.difficulty
     deploy = project.deploy_intent
 
+    # 평가 완료 시 정확 룰
     if p == Priority.P0 and d == Difficulty.HIGH and deploy:
         return Stage.S3
     if p in (Priority.P0, Priority.P1) and d == Difficulty.LOW and not deploy:
         return Stage.S2
+
+    # 미평가 fallback — priority 만으로 우선 분배
+    if d == Difficulty.UNSET:
+        if p == Priority.P0:
+            return Stage.S3
+        if p == Priority.P1:
+            return Stage.S2
+
     return Stage.S1
 
 
