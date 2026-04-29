@@ -1,0 +1,60 @@
+# 파이썬
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+*.log
+local_settings.py
+
+# Node
+node_modules/
+.next/
+.turbo/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# 환경변수
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker / 데이터
+postgres_data/
+*.dump
+*.sql.gz
+
+# 임시
+*.tmp
+*.bak
+.coverage
+htmlcov/
