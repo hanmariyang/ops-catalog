@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -23,8 +23,14 @@ import {
   STAGE_LABEL,
   TIER_COLOR,
 } from "@/lib/labels";
+import { useViewportSize } from "@/lib/use-viewport";
 
 const STAGES: Stage[] = [1, 2, 3, 4];
+
+// 50건 = 100% 기준으로 비례 (사용자 명시).
+// 컬럼 최소 폭 220px 보장 — 카드가 들어갈 만한 폭.
+const PROPORTION_BASE = 50;
+const COL_MIN_PX = 220;
 
 type Props = {
   initialItems: ProjectListItem[];
@@ -32,27 +38,34 @@ type Props = {
 };
 
 /**
- * 칸반 보드 — 단계 1·2·3·4 (4열 반응형, 컴팩트 카드).
+ * 칸반 — 4분면 동적 비례 grid.
  *
- * 반응형: 1col (mobile) · 2col (sm) · 4col (lg+)
- * 컬럼: 자체 max-h scroll (헤더 고정)
- * 카드: 한 줄 요약 + 메타 마이크로 한 줄
- *
- * SSR/hydration 안전 — mount 전·익명 모드 → 정적, mount 후+매니저 → DndContext.
+ * - lg+: 한 줄 4분면, 카드 개수 비례 너비 (50건 기준, minmax 220px 보장)
+ * - md: 2x2 grid (균등)
+ * - sm: 4x1 stack
+ * - 컬럼 자체 max-h scroll, 헤더 sticky
+ * - 카드는 backend 가 카테고리·제안자 순 정렬 → 같은 카테고리 묶음마다 mini header
  */
 export function Kanban({ initialItems, manageToken }: Props) {
   const [items, setItems] = useState(initialItems);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const { size, mounted } = useViewportSize();
 
+  // initialItems 가 바뀌면 (router refresh 후) 동기화
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    setItems(initialItems);
+  }, [initialItems]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
+
+  const counts = useMemo(() => {
+    const map: Record<Stage, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    for (const p of items) map[p.stage] += 1;
+    return map;
+  }, [items]);
 
   const byStage = (s: Stage) => items.filter((p) => p.stage === s);
   const activeItem = activeId ? items.find((p) => p.id === activeId) : null;
@@ -115,15 +128,36 @@ export function Kanban({ initialItems, manageToken }: Props) {
 
   const dndActive = mounted && !!manageToken;
 
+  // 비례 grid-template (lg+ 한 줄). minmax 로 최소 폭 보장.
+  const proportionalCols = STAGES.map((s) => {
+    const c = counts[s];
+    // 50 기준의 비율 — 0건이어도 1fr 보장
+    const fr = Math.max(c / PROPORTION_BASE, 0.04);
+    return `minmax(${COL_MIN_PX}px, ${fr.toFixed(3)}fr)`;
+  }).join(" ");
+
+  // 화면 크기별 grid-template-columns
+  const gridStyle: React.CSSProperties = !mounted
+    ? // SSR + 첫 hydration — 균등 4col
+      { gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }
+    : size === "sm"
+    ? { gridTemplateColumns: "1fr" }
+    : size === "md"
+    ? { gridTemplateColumns: "1fr 1fr" }
+    : { gridTemplateColumns: proportionalCols };
+
+  // 컬럼 max-h: 화면 높이 - 헤더(45) - 알림 영역(여유) - 푸터(30)
+  const columnMaxH = "calc(100vh - 130px)";
+
   return (
     <div>
       {error && (
-        <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded">
+        <div className="mb-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded">
           {error}
         </div>
       )}
       {!manageToken && (
-        <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded">
+        <div className="mb-2 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded">
           🔒 익명 모드 — 카드는 클릭만 가능. 단계 변경은 매니저 권한 필요.
         </div>
       )}
@@ -135,64 +169,55 @@ export function Kanban({ initialItems, manageToken }: Props) {
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         >
-          <BoardGrid>
+          <div className="grid gap-2" style={gridStyle}>
             {STAGES.map((stage) => (
               <DroppableColumn
                 key={stage}
                 stage={stage}
                 items={byStage(stage)}
                 manageToken={manageToken}
+                maxHeight={columnMaxH}
               />
             ))}
-          </BoardGrid>
+          </div>
           <DragOverlay>
             {activeItem ? <CardView p={activeItem} dragging /> : null}
           </DragOverlay>
         </DndContext>
       ) : (
-        <BoardGrid>
+        <div className="grid gap-2" style={gridStyle}>
           {STAGES.map((stage) => (
             <StaticColumn
               key={stage}
               stage={stage}
               items={byStage(stage)}
               manageToken={manageToken}
+              maxHeight={columnMaxH}
             />
           ))}
-        </BoardGrid>
+        </div>
       )}
     </div>
   );
 }
 
-// ── 그리드 (반응형 좌→우 진행 X, 단순 grid) ────────────
-function BoardGrid({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      {children}
-    </div>
-  );
-}
-
-// ── 정적 컬럼 ───────────────────────────────────────
+// ── 정적 컬럼 ─────────────────────────────────────
 function StaticColumn({
   stage,
   items,
   manageToken,
+  maxHeight,
 }: {
   stage: Stage;
   items: ProjectListItem[];
   manageToken?: string;
+  maxHeight: string;
 }) {
   return (
-    <ColumnFrame stage={stage} count={items.length}>
-      {items.length === 0 ? (
-        <EmptyHint />
-      ) : (
-        items.map((p) => (
-          <StaticCard key={p.id} p={p} manageToken={manageToken} />
-        ))
-      )}
+    <ColumnFrame stage={stage} count={items.length} maxHeight={maxHeight}>
+      {renderCardsWithCategoryHeaders(items, (p) => (
+        <StaticCard p={p} manageToken={manageToken} />
+      ))}
     </ColumnFrame>
   );
 }
@@ -216,10 +241,12 @@ function DroppableColumn({
   stage,
   items,
   manageToken,
+  maxHeight,
 }: {
   stage: Stage;
   items: ProjectListItem[];
   manageToken: string;
+  maxHeight: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage}` });
   return (
@@ -228,14 +255,11 @@ function DroppableColumn({
       count={items.length}
       droppableRef={setNodeRef}
       highlight={isOver}
+      maxHeight={maxHeight}
     >
-      {items.length === 0 ? (
-        <EmptyHint />
-      ) : (
-        items.map((p) => (
-          <DraggableCard key={p.id} p={p} manageToken={manageToken} />
-        ))
-      )}
+      {renderCardsWithCategoryHeaders(items, (p) => (
+        <DraggableCard p={p} manageToken={manageToken} />
+      ))}
     </ColumnFrame>
   );
 }
@@ -267,6 +291,43 @@ function DraggableCard({
   );
 }
 
+// ── 카테고리 헤더 묶음 ────────────────────────────
+function renderCardsWithCategoryHeaders(
+  items: ProjectListItem[],
+  renderCard: (p: ProjectListItem) => React.ReactNode
+) {
+  if (items.length === 0) {
+    return <EmptyHint />;
+  }
+  const out: React.ReactNode[] = [];
+  let prevCat: string | null = null;
+  for (const p of items) {
+    if (p.category_code !== prevCat) {
+      out.push(
+        <CategoryHeader
+          key={`hdr-${p.category_code}-${p.id}`}
+          code={p.category_code}
+          title={p.category_title}
+        />
+      );
+      prevCat = p.category_code;
+    }
+    out.push(<Fragment key={p.id}>{renderCard(p)}</Fragment>);
+  }
+  return out;
+}
+
+function CategoryHeader({ code, title }: { code: string; title: string }) {
+  return (
+    <div className="flex items-center gap-1 mt-1 mb-0.5 px-0.5 select-none">
+      <span className="text-[9px] font-bold text-slate-500 bg-slate-200 px-1 py-0.5 rounded">
+        {code}
+      </span>
+      <span className="text-[9px] text-slate-500 truncate flex-1">{title}</span>
+    </div>
+  );
+}
+
 // ── 컬럼 프레임 ───────────────────────────────────
 function ColumnFrame({
   stage,
@@ -274,37 +335,41 @@ function ColumnFrame({
   children,
   droppableRef,
   highlight,
+  maxHeight,
 }: {
   stage: Stage;
   count: number;
   children: React.ReactNode;
   droppableRef?: (node: HTMLElement | null) => void;
   highlight?: boolean;
+  maxHeight: string;
 }) {
   return (
     <section
       ref={droppableRef}
-      className={`bg-slate-100 rounded-lg flex flex-col transition ${
+      className={`bg-slate-100 rounded-lg flex flex-col transition min-w-0 ${
         highlight ? "ring-2 ring-haro-500 bg-haro-50" : ""
       }`}
-      style={{ maxHeight: "calc(100vh - 240px)" }}
+      style={{ maxHeight }}
     >
-      {/* 헤더 (고정) */}
-      <header className="px-3 pt-3 pb-2 border-b border-slate-200">
-        <div className="flex items-center gap-2 mb-1">
+      {/* 헤더 (sticky 안에서 항상 위) */}
+      <header className="px-2.5 pt-2 pb-1.5 border-b border-slate-200 flex-shrink-0">
+        <div className="flex items-center gap-1.5">
           <span className={`w-1 h-3.5 rounded-sm ${STAGE_ACCENT[stage]}`} />
-          <h2 className="font-bold text-sm flex-1">{STAGE_LABEL[stage]}</h2>
+          <h2 className="font-bold text-[12.5px] flex-1 truncate">
+            {STAGE_LABEL[stage]}
+          </h2>
           <span className="text-[10px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded">
             {count}
           </span>
         </div>
-        <p className="text-[10px] text-slate-500 leading-snug line-clamp-2">
+        <p className="text-[9.5px] text-slate-500 leading-snug line-clamp-1 mt-0.5">
           {STAGE_DESC[stage]}
         </p>
       </header>
 
       {/* 카드 리스트 (자체 scroll) */}
-      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1.5">
+      <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-1">
         {children}
       </div>
     </section>
@@ -346,7 +411,6 @@ function CardInner({
     : `/projects/${p.id}`;
   return (
     <>
-      {/* line 1 — 제목 (1줄 truncate) */}
       <div className="flex items-start gap-1.5">
         <span
           className={`text-[9px] font-bold px-1 py-0.5 rounded leading-none ${PRIORITY_COLOR[p.priority]} flex-shrink-0`}
@@ -366,13 +430,11 @@ function CardInner({
           →
         </Link>
       </div>
-
-      {/* line 2 — 메타 마이크로 (Tier·R번호·제안자) */}
       <div className="flex items-center gap-1.5 mt-1 text-[10px] leading-none">
         <span className={`px-1 py-0.5 rounded font-bold ${TIER_COLOR[p.tier]}`}>
           {p.category_code}
         </span>
-        <span className="text-slate-500">R{p.source_id}</span>
+        <span className="text-slate-500 flex-shrink-0">R{p.source_id}</span>
         <span className="text-slate-400 truncate">{p.proposer_display}</span>
       </div>
     </>

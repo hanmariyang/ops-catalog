@@ -67,7 +67,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         tier = self.request.query_params.get("tier")
         if tier:
             qs = qs.filter(category__tier=tier)
-        return qs.order_by("source_id")
+        # 카드 정렬: 카테고리 번호 → 제안자 → 행 번호 (안정적 tiebreak)
+        return qs.order_by("category__num", "proposer", "source_id")
 
     def _check_manage(self, request):
         if request.user.is_authenticated and request.user.is_staff:
