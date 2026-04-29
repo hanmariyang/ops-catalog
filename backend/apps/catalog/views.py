@@ -4,7 +4,7 @@ MVP 정책 (D15): 익명 read 허용. write 액션은 hidden token (settings.MAN
 """
 
 from django.conf import settings
-from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -41,8 +41,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.select_related("category").prefetch_related(
         "stage_transitions", "evaluations"
     )
-    filterset_fields = ["stage", "category", "priority", "status", "tier"]
-    filter_backends = [filters.SearchFilter]
+    filterset_fields = ["stage", "category", "priority", "status"]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ["title", "description", "proposer"]
 
     def get_serializer_class(self):
