@@ -366,20 +366,20 @@ function ColumnFrame({
     <section
       ref={droppableRef}
       style={{ ...cellStyle, minHeight: 0 }}
-      className={`bg-white rounded-lg flex flex-col transition min-w-0 border-2 shadow-sm ${
+      className={`bg-white rounded-lg flex flex-col transition min-w-0 shadow-sm ring-1 ${
         highlight
-          ? "ring-2 ring-haro-500 bg-haro-50 border-haro-500"
-          : "border-slate-300"
+          ? "ring-2 ring-haro-500 bg-haro-50"
+          : "ring-slate-200/80"
       }`}
     >
-      {/* 헤더 — 패널 구분 분명하게, slate 배경 */}
-      <header className="px-2.5 pt-2 pb-1.5 border-b-2 border-slate-200 flex-shrink-0 bg-slate-50 rounded-t-md">
+      {/* 헤더 — 미세한 구분선, 흰 배경 그대로 */}
+      <header className="px-2.5 pt-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
         <div className="flex items-center gap-1.5">
           <span className={`w-1 h-4 rounded-sm ${STAGE_ACCENT[stage]}`} />
           <h2 className="font-bold text-[12.5px] flex-1 truncate text-slate-800">
             {STAGE_LABEL[stage]}
           </h2>
-          <span className="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
             {count}
           </span>
         </div>
@@ -389,7 +389,7 @@ function ColumnFrame({
       </header>
 
       {/* 카드 리스트 (자체 scroll) */}
-      <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-1 bg-slate-50/30">
+      <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-1">
         {children}
       </div>
     </section>
