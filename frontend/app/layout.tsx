@@ -38,7 +38,7 @@ export default function RootLayout({
             </Suspense>
           </div>
         </header>
-        <main className="flex-1 overflow-hidden px-3 sm:px-4 py-2">{children}</main>
+        <main className="flex-1 min-h-0 overflow-hidden px-3 sm:px-4 py-2">{children}</main>
         <footer className="border-t border-slate-200 bg-white flex-shrink-0">
           <div className="px-3 sm:px-4 py-1 text-[10px] text-slate-500 flex justify-between">
             <span>한마리양 · ops-catalog</span>
