@@ -170,15 +170,25 @@ export function Kanban({ initialItems, manageToken }: Props) {
     }
   };
 
+  // alert 가 있으면 그 행이 추가, 없으면 보드 한 개 행만.
+  const hasAlert = !!error || !manageToken;
+  const outerStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateRows: hasAlert ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)",
+    gap: "0.5rem",
+    height: "100%",
+    minHeight: 0,
+  };
+
   return (
-    <div className="h-full flex flex-col min-h-0">
+    <div style={outerStyle}>
       {error && (
-        <div className="mb-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded flex-shrink-0">
+        <div className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded">
           {error}
         </div>
       )}
-      {!manageToken && (
-        <div className="mb-2 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded flex-shrink-0">
+      {!error && !manageToken && (
+        <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded">
           🔒 익명 모드 — 카드는 클릭만 가능. 단계 변경은 매니저 권한 필요.
         </div>
       )}
@@ -190,7 +200,7 @@ export function Kanban({ initialItems, manageToken }: Props) {
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         >
-          <div className="flex-1 grid gap-2 min-h-0" style={gridStyle}>
+          <div className="grid gap-2 min-h-0" style={gridStyle}>
             {STAGES.map((stage) => (
               <DroppableColumn
                 key={stage}
@@ -206,7 +216,7 @@ export function Kanban({ initialItems, manageToken }: Props) {
           </DragOverlay>
         </DndContext>
       ) : (
-        <div className="flex-1 grid gap-2 min-h-0" style={gridStyle}>
+        <div className="grid gap-2 min-h-0" style={gridStyle}>
           {STAGES.map((stage) => (
             <StaticColumn
               key={stage}
