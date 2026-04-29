@@ -18,12 +18,13 @@ import type { ProjectListItem, Stage } from "@/lib/api";
 import {
   PRIORITY_COLOR,
   PRIORITY_LABEL,
+  STAGE_ACCENT,
   STAGE_DESC,
   STAGE_LABEL,
   TIER_COLOR,
 } from "@/lib/labels";
 
-const STAGES: Stage[] = [1, 2, 3];
+const STAGES: Stage[] = [1, 2, 3, 4];
 
 type Props = {
   initialItems: ProjectListItem[];
@@ -31,14 +32,13 @@ type Props = {
 };
 
 /**
- * 칸반 보드 — 단계 1·2·3 컬럼 사이 드래그&드롭.
+ * 칸반 보드 — 단계 1·2·3·4 (4열 반응형, 컴팩트 카드).
  *
- * SSR/hydration 안전 패턴:
- * - mount 전 또는 매니저 토큰 없을 때 → 정적 보드 (useDraggable/useDroppable 호출 X)
- * - mount 후 + 매니저 모드 → DndContext + draggable/droppable hook 활성화
+ * 반응형: 1col (mobile) · 2col (sm) · 4col (lg+)
+ * 컬럼: 자체 max-h scroll (헤더 고정)
+ * 카드: 한 줄 요약 + 메타 마이크로 한 줄
  *
- * 이렇게 하면 SSR HTML 에 dnd-kit 의 aria-describedby 같은 카운터-기반 속성이 없어
- * hydration mismatch 가 발생하지 않는다.
+ * SSR/hydration 안전 — mount 전·익명 모드 → 정적, mount 후+매니저 → DndContext.
  */
 export function Kanban({ initialItems, manageToken }: Props) {
   const [items, setItems] = useState(initialItems);
@@ -113,7 +113,6 @@ export function Kanban({ initialItems, manageToken }: Props) {
     }
   };
 
-  // 활성화 조건: 클라이언트 마운트 완료 + 매니저 토큰 있음
   const dndActive = mounted && !!manageToken;
 
   return (
@@ -124,7 +123,7 @@ export function Kanban({ initialItems, manageToken }: Props) {
         </div>
       )}
       {!manageToken && (
-        <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded">
+        <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded">
           🔒 익명 모드 — 카드는 클릭만 가능. 단계 변경은 매니저 권한 필요.
         </div>
       )}
@@ -136,7 +135,7 @@ export function Kanban({ initialItems, manageToken }: Props) {
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <BoardGrid>
             {STAGES.map((stage) => (
               <DroppableColumn
                 key={stage}
@@ -145,13 +144,13 @@ export function Kanban({ initialItems, manageToken }: Props) {
                 manageToken={manageToken}
               />
             ))}
-          </div>
+          </BoardGrid>
           <DragOverlay>
             {activeItem ? <CardView p={activeItem} dragging /> : null}
           </DragOverlay>
         </DndContext>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <BoardGrid>
           {STAGES.map((stage) => (
             <StaticColumn
               key={stage}
@@ -160,14 +159,22 @@ export function Kanban({ initialItems, manageToken }: Props) {
               manageToken={manageToken}
             />
           ))}
-        </div>
+        </BoardGrid>
       )}
     </div>
   );
 }
 
-// ── 정적 컬럼 (SSR + mount 전 + 익명 모드) ─────────────
+// ── 그리드 (반응형 좌→우 진행 X, 단순 grid) ────────────
+function BoardGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {children}
+    </div>
+  );
+}
 
+// ── 정적 컬럼 ───────────────────────────────────────
 function StaticColumn({
   stage,
   items,
@@ -178,18 +185,15 @@ function StaticColumn({
   manageToken?: string;
 }) {
   return (
-    <div className="bg-slate-100 rounded-xl p-4 min-h-[240px]">
-      <ColumnHeader stage={stage} count={items.length} />
-      <div className="space-y-2">
-        {items.length === 0 ? (
-          <EmptyHint />
-        ) : (
-          items.map((p) => (
-            <StaticCard key={p.id} p={p} manageToken={manageToken} />
-          ))
-        )}
-      </div>
-    </div>
+    <ColumnFrame stage={stage} count={items.length}>
+      {items.length === 0 ? (
+        <EmptyHint />
+      ) : (
+        items.map((p) => (
+          <StaticCard key={p.id} p={p} manageToken={manageToken} />
+        ))
+      )}
+    </ColumnFrame>
   );
 }
 
@@ -201,14 +205,13 @@ function StaticCard({
   manageToken?: string;
 }) {
   return (
-    <div className="relative bg-white rounded-lg border border-slate-200 p-3 hover:shadow-md hover:border-haro-500 transition">
+    <div className="relative bg-white rounded-md border border-slate-200 px-2 py-1.5 hover:border-haro-500 transition">
       <CardInner p={p} manageToken={manageToken} dragHandle={false} />
     </div>
   );
 }
 
-// ── 드래그 활성 컬럼 (mount 후 + 매니저) ──────────────
-
+// ── 드래그 컬럼 ───────────────────────────────────
 function DroppableColumn({
   stage,
   items,
@@ -220,23 +223,20 @@ function DroppableColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage}` });
   return (
-    <div
-      ref={setNodeRef}
-      className={`bg-slate-100 rounded-xl p-4 min-h-[240px] transition ${
-        isOver ? "ring-2 ring-haro-500 bg-haro-50" : ""
-      }`}
+    <ColumnFrame
+      stage={stage}
+      count={items.length}
+      droppableRef={setNodeRef}
+      highlight={isOver}
     >
-      <ColumnHeader stage={stage} count={items.length} />
-      <div className="space-y-2">
-        {items.length === 0 ? (
-          <EmptyHint />
-        ) : (
-          items.map((p) => (
-            <DraggableCard key={p.id} p={p} manageToken={manageToken} />
-          ))
-        )}
-      </div>
-    </div>
+      {items.length === 0 ? (
+        <EmptyHint />
+      ) : (
+        items.map((p) => (
+          <DraggableCard key={p.id} p={p} manageToken={manageToken} />
+        ))
+      )}
+    </ColumnFrame>
   );
 }
 
@@ -260,42 +260,70 @@ function DraggableCard({
       }}
       {...listeners}
       {...attributes}
-      className="relative bg-white rounded-lg border border-slate-200 p-3 hover:shadow-md hover:border-haro-500 transition cursor-grab active:cursor-grabbing select-none"
+      className="relative bg-white rounded-md border border-slate-200 px-2 py-1.5 hover:border-haro-500 transition cursor-grab active:cursor-grabbing select-none"
     >
       <CardInner p={p} manageToken={manageToken} dragHandle />
     </div>
   );
 }
 
-// ── 공용 부품 ────────────────────────────────────────
-
-function ColumnHeader({ stage, count }: { stage: Stage; count: number }) {
+// ── 컬럼 프레임 ───────────────────────────────────
+function ColumnFrame({
+  stage,
+  count,
+  children,
+  droppableRef,
+  highlight,
+}: {
+  stage: Stage;
+  count: number;
+  children: React.ReactNode;
+  droppableRef?: (node: HTMLElement | null) => void;
+  highlight?: boolean;
+}) {
   return (
-    <>
-      <div className="flex items-baseline justify-between mb-1">
-        <h2 className="font-bold text-base">{STAGE_LABEL[stage]}</h2>
-        <span className="text-xs text-slate-500 font-semibold">{count}건</span>
+    <section
+      ref={droppableRef}
+      className={`bg-slate-100 rounded-lg flex flex-col transition ${
+        highlight ? "ring-2 ring-haro-500 bg-haro-50" : ""
+      }`}
+      style={{ maxHeight: "calc(100vh - 240px)" }}
+    >
+      {/* 헤더 (고정) */}
+      <header className="px-3 pt-3 pb-2 border-b border-slate-200">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`w-1 h-3.5 rounded-sm ${STAGE_ACCENT[stage]}`} />
+          <h2 className="font-bold text-sm flex-1">{STAGE_LABEL[stage]}</h2>
+          <span className="text-[10px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded">
+            {count}
+          </span>
+        </div>
+        <p className="text-[10px] text-slate-500 leading-snug line-clamp-2">
+          {STAGE_DESC[stage]}
+        </p>
+      </header>
+
+      {/* 카드 리스트 (자체 scroll) */}
+      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1.5">
+        {children}
       </div>
-      <p className="text-xs text-slate-500 mb-3 pb-3 border-b border-slate-200">
-        {STAGE_DESC[stage]}
-      </p>
-    </>
+    </section>
   );
 }
 
 function EmptyHint() {
   return (
-    <div className="text-xs text-slate-400 text-center py-8">
+    <div className="text-[10px] text-slate-400 text-center py-6">
       (해당 단계 항목 없음)
     </div>
   );
 }
 
+// ── 카드 내용 (컴팩트) ───────────────────────────
 function CardView({ p, dragging }: { p: ProjectListItem; dragging?: boolean }) {
-  // DragOverlay 안에서만 사용 — link 없는 단순 카드
   return (
     <div
-      className={`block bg-white rounded-lg border border-slate-200 p-3 ${
+      className={`bg-white rounded-md border border-slate-200 px-2 py-1.5 ${
         dragging ? "shadow-lg border-haro-500 rotate-1" : ""
       }`}
     >
@@ -318,35 +346,35 @@ function CardInner({
     : `/projects/${p.id}`;
   return (
     <>
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${TIER_COLOR[p.tier]}`}>
-          {p.category_code}
-        </span>
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${PRIORITY_COLOR[p.priority]}`}>
+      {/* line 1 — 제목 (1줄 truncate) */}
+      <div className="flex items-start gap-1.5">
+        <span
+          className={`text-[9px] font-bold px-1 py-0.5 rounded leading-none ${PRIORITY_COLOR[p.priority]} flex-shrink-0`}
+        >
           {PRIORITY_LABEL[p.priority]}
         </span>
-        <span className="text-[10px] font-bold text-haro-600 bg-haro-50 px-1.5 py-0.5 rounded">
-          R{p.source_id}
-        </span>
+        <div className="text-[12px] font-semibold leading-tight line-clamp-1 flex-1 min-w-0">
+          {p.title}
+        </div>
         <Link
           href={detailHref}
           draggable={false}
           onPointerDown={(e) => e.stopPropagation()}
-          className="ml-auto text-[10px] text-slate-400 hover:text-haro-600 hover:underline"
+          className="text-[10px] text-slate-400 hover:text-haro-600 leading-none flex-shrink-0"
+          title="상세 보기"
         >
-          상세 →
+          →
         </Link>
       </div>
-      <div className="text-sm font-semibold leading-snug line-clamp-2">{p.title}</div>
-      <div className="text-xs text-slate-500 mt-1.5 flex justify-between">
-        <span>{p.proposer_display}</span>
-        <span>{p.category_title}</span>
+
+      {/* line 2 — 메타 마이크로 (Tier·R번호·제안자) */}
+      <div className="flex items-center gap-1.5 mt-1 text-[10px] leading-none">
+        <span className={`px-1 py-0.5 rounded font-bold ${TIER_COLOR[p.tier]}`}>
+          {p.category_code}
+        </span>
+        <span className="text-slate-500">R{p.source_id}</span>
+        <span className="text-slate-400 truncate">{p.proposer_display}</span>
       </div>
-      {dragHandle && (
-        <div className="text-[9px] text-slate-300 mt-1 leading-none select-none">
-          ⋮⋮ 드래그로 단계 이동 · 상세는 우측 링크
-        </div>
-      )}
     </>
   );
 }

@@ -21,7 +21,15 @@ export function EditForm({ project, categories, manageToken }: Props) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    category: number;
+    difficulty: typeof project.difficulty;
+    deploy_intent: boolean;
+    stage: 1 | 2 | 3 | 4;
+    status: typeof project.status;
+    result_url: string;
+    name_public: boolean;
+  }>({
     category: project.category.id,
     difficulty: project.difficulty,
     deploy_intent: project.deploy_intent,
@@ -129,12 +137,13 @@ export function EditForm({ project, categories, manageToken }: Props) {
         <Field label="현재 단계">
           <select
             value={form.stage}
-            onChange={(e) => set("stage", Number(e.target.value) as 1 | 2 | 3)}
+            onChange={(e) => set("stage", Number(e.target.value) as 1 | 2 | 3 | 4)}
             className="w-full border rounded px-2 py-1.5 bg-white"
           >
-            <option value={1}>1단계</option>
-            <option value={2}>2단계</option>
-            <option value={3}>3단계</option>
+            <option value={1}>1단계 — 담당자 직접</option>
+            <option value={2}>2단계 — 위임 후보</option>
+            <option value={3}>3단계 — 직접 위임</option>
+            <option value={4}>기타 — 제외·별도</option>
           </select>
         </Field>
 

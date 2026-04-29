@@ -30,7 +30,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 // ── 도메인 타입 ────────────────────────────────────
 
 export type Tier = "T1" | "T2" | "T3";
-export type Stage = 1 | 2 | 3;
+export type Stage = 1 | 2 | 3 | 4;
 export type PriorityCode = "P0" | "P1" | "P2" | "P3" | "unset";
 export type Difficulty = "low" | "mid" | "high" | "unset";
 export type StatusCode = "not_started" | "in_progress" | "done" | "archived";

@@ -4,12 +4,22 @@ export const STAGE_LABEL: Record<Stage, string> = {
   1: "1단계 — 담당자 직접",
   2: "2단계 — 위임 후보",
   3: "3단계 — 직접 위임",
+  4: "기타 — 제외·별도",
 };
 
 export const STAGE_DESC: Record<Stage, string> = {
   1: "P2/P3 또는 미평가. 담당자가 직접 진행.",
   2: "P0/P1 + 난이도 낮음 + 미배포. 인솔파 위임 후보.",
   3: "P0 + 난이도 높음 + 배포. 인솔파 직접 위임.",
+  4: "단계 분류에서 제외하거나 별도로 관리할 항목.",
+};
+
+// 단계별 액센트 색 (Tailwind 클래스 — 헤더 좌측 strip)
+export const STAGE_ACCENT: Record<Stage, string> = {
+  1: "bg-slate-400",
+  2: "bg-blue-500",
+  3: "bg-haro-500",
+  4: "bg-slate-300",
 };
 
 export const PRIORITY_LABEL: Record<PriorityCode, string> = {

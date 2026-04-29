@@ -52,6 +52,7 @@ class Stage(models.IntegerChoices):
     S1 = 1, "1단계 (담당자 직접 진행)"
     S2 = 2, "2단계 (인솔파 위임 후보)"
     S3 = 3, "3단계 (인솔파 직접 위임)"
+    S4 = 4, "기타 (제외·별도 관리)"
 
 
 class Status(models.TextChoices):

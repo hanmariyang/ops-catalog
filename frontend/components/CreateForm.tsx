@@ -32,7 +32,7 @@ export function CreateForm({ categories, manageToken }: Props) {
     priority: "unset" as (typeof PRIORITY_OPTIONS)[number],
     difficulty: "unset" as "low" | "mid" | "high" | "unset",
     deploy_intent: false,
-    stage: 1 as 1 | 2 | 3,
+    stage: 1 as 1 | 2 | 3 | 4,
     status: "not_started" as "not_started" | "in_progress" | "done" | "archived",
     name_public: true,
   });
@@ -203,12 +203,13 @@ export function CreateForm({ categories, manageToken }: Props) {
             </label>
             <select
               value={form.stage}
-              onChange={(e) => set("stage", Number(e.target.value) as 1 | 2 | 3)}
+              onChange={(e) => set("stage", Number(e.target.value) as 1 | 2 | 3 | 4)}
               className="border rounded px-2 py-1.5 bg-white"
             >
               <option value={1}>1단계</option>
               <option value={2}>2단계</option>
               <option value={3}>3단계</option>
+              <option value={4}>기타</option>
             </select>
           </div>
         </Field>

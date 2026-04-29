@@ -112,8 +112,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response({"detail": "manager only"}, status=status.HTTP_403_FORBIDDEN)
         project = self.get_object()
         target = request.data.get("to_stage")
-        if target not in (1, 2, 3):
-            return Response({"detail": "to_stage must be 1, 2 or 3"}, status=400)
+        if target not in (1, 2, 3, 4):
+            return Response({"detail": "to_stage must be 1, 2, 3 or 4"}, status=400)
         reason = request.data.get("reason", "")
         actor_label = request.data.get("actor_label", "주인")
         from_stage = project.stage
