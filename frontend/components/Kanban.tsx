@@ -27,10 +27,13 @@ import { useViewportSize } from "@/lib/use-viewport";
 
 const STAGES: Stage[] = [1, 2, 3, 4];
 
-// 50건 = 100% 기준으로 비례 (사용자 명시).
-// 컬럼 최소 폭 220px 보장 — 카드가 들어갈 만한 폭.
-const PROPORTION_BASE = 50;
-const COL_MIN_PX = 220;
+/**
+ * 한 분면이 전체의 BIG_RATIO 초과면 그 분면이 row 1 전체 차지 (1+3 레이아웃).
+ * 이하면 2x2 균등.
+ */
+const BIG_RATIO = 0.4;
+
+type LayoutKind = "stack" | "two-by-two" | "one-plus-three";
 
 type Props = {
   initialItems: ProjectListItem[];
@@ -38,13 +41,16 @@ type Props = {
 };
 
 /**
- * 칸반 — 4분면 동적 비례 grid.
+ * 카탈로그 보드 — 분포 적응형 4분면.
  *
- * - lg+: 한 줄 4분면, 카드 개수 비례 너비 (50건 기준, minmax 220px 보장)
- * - md: 2x2 grid (균등)
- * - sm: 4x1 stack
- * - 컬럼 자체 max-h scroll, 헤더 sticky
- * - 카드는 backend 가 카테고리·제안자 순 정렬 → 같은 카테고리 묶음마다 mini header
+ * 화면 크기 + 카드 수 분포에 따라 grid 형태 *자체* 가 바뀜:
+ * - sm: 4x1 stack (세로)
+ * - md: 항상 2x2 균등
+ * - lg+: 분포 따라
+ *   - 모든 단계 비슷 (max ratio ≤ 0.4) → 2x2 균등
+ *   - 한 단계 압도 (max ratio > 0.4) → 1+3 (큰 셀이 1행 전체, 나머지 3개가 2행)
+ *
+ * 좌우 폭 비례가 아니라 cell 배치 자체가 바뀌는 반응형.
  */
 export function Kanban({ initialItems, manageToken }: Props) {
   const [items, setItems] = useState(initialItems);
@@ -128,26 +134,52 @@ export function Kanban({ initialItems, manageToken }: Props) {
 
   const dndActive = mounted && !!manageToken;
 
-  // 비례 grid-template (lg+ 한 줄). minmax 로 최소 폭 보장.
-  const proportionalCols = STAGES.map((s) => {
-    const c = counts[s];
-    // 50 기준의 비율 — 0건이어도 1fr 보장
-    const fr = Math.max(c / PROPORTION_BASE, 0.04);
-    return `minmax(${COL_MIN_PX}px, ${fr.toFixed(3)}fr)`;
-  }).join(" ");
+  // 가장 큰 분면 + 비율 산출
+  const total = counts[1] + counts[2] + counts[3] + counts[4];
+  const biggestStage: Stage = STAGES.reduce((acc, s) =>
+    counts[s] > counts[acc] ? s : acc
+  );
+  const maxRatio = total > 0 ? counts[biggestStage] / total : 0;
 
-  // 화면 크기별 grid-template-columns
-  const gridStyle: React.CSSProperties = !mounted
-    ? // SSR + 첫 hydration — 균등 4col
-      { gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }
+  // 레이아웃 종류 결정
+  const layout: LayoutKind = !mounted
+    ? "two-by-two"
     : size === "sm"
-    ? { gridTemplateColumns: "1fr" }
+    ? "stack"
     : size === "md"
-    ? { gridTemplateColumns: "1fr 1fr" }
-    : { gridTemplateColumns: proportionalCols };
+    ? "two-by-two"
+    : maxRatio > BIG_RATIO
+    ? "one-plus-three"
+    : "two-by-two";
 
-  // 컬럼 max-h: 화면 높이 - 헤더(45) - 알림 영역(여유) - 푸터(30)
-  const columnMaxH = "calc(100vh - 130px)";
+  // grid 컨테이너 스타일
+  const gridStyle: React.CSSProperties =
+    layout === "stack"
+      ? { gridTemplateColumns: "1fr", gridAutoRows: "minmax(180px, auto)" }
+      : layout === "two-by-two"
+      ? {
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)",
+          height: "calc(100vh - 130px)",
+        }
+      : // one-plus-three: 큰 셀이 1행 전체 (3 col span), 나머지 3개가 2행 1x3
+        {
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gridTemplateRows: "minmax(0, 1.1fr) minmax(0, 1fr)",
+          height: "calc(100vh - 130px)",
+        };
+
+  // 각 cell 의 명시적 grid 위치 — 자동 placement 충돌 방지
+  const cellStyle = (stage: Stage): React.CSSProperties => {
+    if (layout !== "one-plus-three") return {};
+    if (stage === biggestStage) {
+      return { gridColumn: "1 / -1", gridRow: 1 };
+    }
+    // biggest 를 제외한 나머지를 STAGES 순서대로 row 2 에 배치
+    const others = STAGES.filter((s) => s !== biggestStage);
+    const idx = others.indexOf(stage);
+    return { gridColumn: idx + 1, gridRow: 2 };
+  };
 
   return (
     <div>
@@ -176,7 +208,7 @@ export function Kanban({ initialItems, manageToken }: Props) {
                 stage={stage}
                 items={byStage(stage)}
                 manageToken={manageToken}
-                maxHeight={columnMaxH}
+                cellStyle={cellStyle(stage)}
               />
             ))}
           </div>
@@ -192,7 +224,7 @@ export function Kanban({ initialItems, manageToken }: Props) {
               stage={stage}
               items={byStage(stage)}
               manageToken={manageToken}
-              maxHeight={columnMaxH}
+              cellStyle={cellStyle(stage)}
             />
           ))}
         </div>
@@ -206,15 +238,15 @@ function StaticColumn({
   stage,
   items,
   manageToken,
-  maxHeight,
+  cellStyle,
 }: {
   stage: Stage;
   items: ProjectListItem[];
   manageToken?: string;
-  maxHeight: string;
+  cellStyle: React.CSSProperties;
 }) {
   return (
-    <ColumnFrame stage={stage} count={items.length} maxHeight={maxHeight}>
+    <ColumnFrame stage={stage} count={items.length} cellStyle={cellStyle}>
       {renderCardsWithCategoryHeaders(items, (p) => (
         <StaticCard p={p} manageToken={manageToken} />
       ))}
@@ -241,12 +273,12 @@ function DroppableColumn({
   stage,
   items,
   manageToken,
-  maxHeight,
+  cellStyle,
 }: {
   stage: Stage;
   items: ProjectListItem[];
   manageToken: string;
-  maxHeight: string;
+  cellStyle: React.CSSProperties;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage}` });
   return (
@@ -255,7 +287,7 @@ function DroppableColumn({
       count={items.length}
       droppableRef={setNodeRef}
       highlight={isOver}
-      maxHeight={maxHeight}
+      cellStyle={cellStyle}
     >
       {renderCardsWithCategoryHeaders(items, (p) => (
         <DraggableCard p={p} manageToken={manageToken} />
@@ -335,22 +367,23 @@ function ColumnFrame({
   children,
   droppableRef,
   highlight,
-  maxHeight,
+  cellStyle,
 }: {
   stage: Stage;
   count: number;
   children: React.ReactNode;
   droppableRef?: (node: HTMLElement | null) => void;
   highlight?: boolean;
-  maxHeight: string;
+  cellStyle: React.CSSProperties;
 }) {
+  // grid cell 자체 높이 = grid track 가 결정. min-height 0 으로 inner scroll 을 보장.
   return (
     <section
       ref={droppableRef}
+      style={{ ...cellStyle, minHeight: 0 }}
       className={`bg-slate-100 rounded-lg flex flex-col transition min-w-0 ${
         highlight ? "ring-2 ring-haro-500 bg-haro-50" : ""
       }`}
-      style={{ maxHeight }}
     >
       {/* 헤더 (sticky 안에서 항상 위) */}
       <header className="px-2.5 pt-2 pb-1.5 border-b border-slate-200 flex-shrink-0">
