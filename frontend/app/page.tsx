@@ -36,10 +36,18 @@ export default async function HomePage({
   const totalCount = allRes.count;
 
   return (
-    <div>
-      {/* 필터 바 */}
-      <section className="mb-6">
-        <div className="text-xs text-slate-500 mb-2 flex items-center gap-3">
+    <div
+      style={{
+        display: "grid",
+        gridTemplateRows: "auto minmax(0, 1fr)",
+        gap: "0.5rem",
+        height: "100%",
+        minHeight: 0,
+      }}
+    >
+      {/* 필터 바 (auto row) */}
+      <section>
+        <div className="text-xs text-slate-500 mb-1.5 flex items-center gap-3">
           <span>전체 {totalCount}건 · 카테고리 필터</span>
           {manageToken && (
             <span className="text-haro-600 font-semibold bg-haro-50 px-2 py-0.5 rounded">
@@ -76,8 +84,10 @@ export default async function HomePage({
         </div>
       </section>
 
-      {/* 칸반 (client) */}
-      <Kanban initialItems={items} manageToken={manageToken} />
+      {/* 칸반 (client) — minmax(0,1fr) row 차지 */}
+      <div style={{ minHeight: 0 }}>
+        <Kanban initialItems={items} manageToken={manageToken} />
+      </div>
     </div>
   );
 }
