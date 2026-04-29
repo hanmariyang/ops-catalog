@@ -9,11 +9,20 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+// useSearchParams 를 사용하는 component 는 Suspense 로 감싸야 production prerender 통과.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="max-w-md mx-auto py-12 text-center text-sm text-slate-500">로딩…</div>}>
+      <LoginInner />
+    </Suspense>
+  );
+}
+
+function LoginInner() {
   const router = useRouter();
   const search = useSearchParams();
   const next = search.get("next") || "/";

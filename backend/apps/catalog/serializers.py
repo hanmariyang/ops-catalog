@@ -131,6 +131,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             "suggestion_reason",
             "status",
             "result_url",
+            "name_public",
             # 이력
             "stage_transitions",
             "evaluations",

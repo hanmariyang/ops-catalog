@@ -69,6 +69,7 @@ export type ProjectDetail = ProjectListItem & {
   suggested_stage: Stage;
   suggestion_reason: string;
   result_url: string;
+  name_public: boolean;
   stage_transitions: {
     id: number;
     from_stage: number | null;
