@@ -6,7 +6,8 @@ MVP 정책 (D15): 익명 read 허용. write 액션은 hidden token (settings.MAN
 from django.conf import settings
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from apps.catalog.models import Category, Project, Stage, StageTransition
@@ -25,6 +26,13 @@ def _has_manage_token(request) -> bool:
         return False
     incoming = request.headers.get("X-Manage-Token") or request.query_params.get("token")
     return incoming == token
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def verify_manage(request):
+    """매니저 토큰 일치 여부만 응답. 정답 자체는 노출하지 않음."""
+    return Response({"valid": _has_manage_token(request)})
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):

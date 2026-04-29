@@ -2,22 +2,40 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 /**
  * 헤더 우측 - 매니저 로그인/로그아웃 표시.
  *
- * URL ?token=... 기반 (인증 도입 전 임시). 일치 여부는 server 가 검증하고,
- * 이 컴포넌트는 단순히 토큰 *존재* 만 보고 매니저 모드 라벨을 표시.
+ * URL ?token=... 으로 들어온 토큰을 backend /api/v1/auth/verify/ 로 검증.
+ * 일치 → "매니저 모드 ON" / 불일치 → "토큰 불일치" 안내.
  */
 export function AuthBadge() {
   const params = useSearchParams();
   const pathname = usePathname();
   const token = params.get("token") || "";
 
+  const [valid, setValid] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!token) {
+      setValid(false);
+      return;
+    }
+    setValid(null);
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/auth/verify/`, {
+      headers: { "X-Manage-Token": token },
+    })
+      .then((r) => r.json())
+      .then((d) => setValid(!!d.valid))
+      .catch(() => setValid(false));
+  }, [token]);
+
+  // 토큰 자체가 없음 → 로그인 버튼
   if (!token) {
     return (
       <Link
-        href="/login"
+        href={`/login?next=${encodeURIComponent(pathname)}`}
         className="text-xs font-semibold px-3 py-1.5 rounded-full bg-haro-500 text-white hover:bg-haro-600 transition"
       >
         🔑 매니저 로그인
@@ -25,8 +43,26 @@ export function AuthBadge() {
     );
   }
 
-  // 토큰이 있으면 — 매니저 모드 표시 + 로그아웃
-  // 로그아웃은 token 제외한 같은 URL 로 redirect
+  // 검증 중
+  if (valid === null) {
+    return (
+      <span className="text-xs text-slate-500 px-2 py-1">확인 중…</span>
+    );
+  }
+
+  // 검증 실패 — 토큰 불일치
+  if (!valid) {
+    return (
+      <Link
+        href={`/login?next=${encodeURIComponent(pathname)}`}
+        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition"
+      >
+        ⚠ 토큰 불일치 — 재입력
+      </Link>
+    );
+  }
+
+  // 검증 성공 — 매니저 모드
   const otherParams = new URLSearchParams();
   for (const [k, v] of params.entries()) {
     if (k !== "token") otherParams.set(k, v);

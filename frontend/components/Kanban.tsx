@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -33,13 +33,22 @@ type Props = {
 /**
  * 칸반 보드 — 단계 1·2·3 컬럼 사이 드래그&드롭.
  *
- * 매니저(token 보유) 만 실제 단계 변경 가능. 익명도 카드를 잡을 수는 있으나
- * drop 시 API 가 403 반환 → 원위치 복귀.
+ * SSR/hydration 안전 패턴:
+ * - mount 전 또는 매니저 토큰 없을 때 → 정적 보드 (useDraggable/useDroppable 호출 X)
+ * - mount 후 + 매니저 모드 → DndContext + draggable/droppable hook 활성화
+ *
+ * 이렇게 하면 SSR HTML 에 dnd-kit 의 aria-describedby 같은 카운터-기반 속성이 없어
+ * hydration mismatch 가 발생하지 않는다.
  */
 export function Kanban({ initialItems, manageToken }: Props) {
   const [items, setItems] = useState(initialItems);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -64,11 +73,10 @@ export function Kanban({ initialItems, manageToken }: Props) {
     if (!item || item.stage === target) return;
 
     if (!manageToken) {
-      setError("매니저 토큰이 필요합니다 — /manage?token=... 로 접속하세요.");
+      setError("매니저 토큰이 필요합니다 — /login 에서 로그인하세요.");
       return;
     }
 
-    // optimistic update
     const prevStage = item.stage;
     setItems((prev) =>
       prev.map((p) => (p.id === projectId ? { ...p, stage: target } : p))
@@ -91,7 +99,6 @@ export function Kanban({ initialItems, manageToken }: Props) {
         }
       );
       if (!res.ok) {
-        // rollback
         setItems((prev) =>
           prev.map((p) => (p.id === projectId ? { ...p, stage: prevStage } : p))
         );
@@ -106,6 +113,9 @@ export function Kanban({ initialItems, manageToken }: Props) {
     }
   };
 
+  // 활성화 조건: 클라이언트 마운트 완료 + 매니저 토큰 있음
+  const dndActive = mounted && !!manageToken;
+
   return (
     <div>
       {error && (
@@ -118,39 +128,97 @@ export function Kanban({ initialItems, manageToken }: Props) {
           🔒 익명 모드 — 카드는 클릭만 가능. 단계 변경은 매니저 권한 필요.
         </div>
       )}
-      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+
+      {dndActive ? (
+        <DndContext
+          id="ops-catalog-kanban"
+          sensors={sensors}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {STAGES.map((stage) => (
+              <DroppableColumn
+                key={stage}
+                stage={stage}
+                items={byStage(stage)}
+                manageToken={manageToken}
+              />
+            ))}
+          </div>
+          <DragOverlay>
+            {activeItem ? <CardView p={activeItem} dragging /> : null}
+          </DragOverlay>
+        </DndContext>
+      ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {STAGES.map((stage) => (
-            <StageColumn
+            <StaticColumn
               key={stage}
               stage={stage}
               items={byStage(stage)}
-              draggable={!!manageToken}
               manageToken={manageToken}
             />
           ))}
         </div>
-        <DragOverlay>
-          {activeItem ? <CardView p={activeItem} dragging /> : null}
-        </DragOverlay>
-      </DndContext>
+      )}
     </div>
   );
 }
 
-function StageColumn({
+// ── 정적 컬럼 (SSR + mount 전 + 익명 모드) ─────────────
+
+function StaticColumn({
   stage,
   items,
-  draggable,
   manageToken,
 }: {
   stage: Stage;
   items: ProjectListItem[];
-  draggable: boolean;
   manageToken?: string;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage}` });
+  return (
+    <div className="bg-slate-100 rounded-xl p-4 min-h-[240px]">
+      <ColumnHeader stage={stage} count={items.length} />
+      <div className="space-y-2">
+        {items.length === 0 ? (
+          <EmptyHint />
+        ) : (
+          items.map((p) => (
+            <StaticCard key={p.id} p={p} manageToken={manageToken} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
+function StaticCard({
+  p,
+  manageToken,
+}: {
+  p: ProjectListItem;
+  manageToken?: string;
+}) {
+  return (
+    <div className="relative bg-white rounded-lg border border-slate-200 p-3 hover:shadow-md hover:border-haro-500 transition">
+      <CardInner p={p} manageToken={manageToken} dragHandle={false} />
+    </div>
+  );
+}
+
+// ── 드래그 활성 컬럼 (mount 후 + 매니저) ──────────────
+
+function DroppableColumn({
+  stage,
+  items,
+  manageToken,
+}: {
+  stage: Stage;
+  items: ProjectListItem[];
+  manageToken: string;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage}` });
   return (
     <div
       ref={setNodeRef}
@@ -158,26 +226,13 @@ function StageColumn({
         isOver ? "ring-2 ring-haro-500 bg-haro-50" : ""
       }`}
     >
-      <div className="flex items-baseline justify-between mb-1">
-        <h2 className="font-bold text-base">{STAGE_LABEL[stage]}</h2>
-        <span className="text-xs text-slate-500 font-semibold">{items.length}건</span>
-      </div>
-      <p className="text-xs text-slate-500 mb-3 pb-3 border-b border-slate-200">
-        {STAGE_DESC[stage]}
-      </p>
+      <ColumnHeader stage={stage} count={items.length} />
       <div className="space-y-2">
         {items.length === 0 ? (
-          <div className="text-xs text-slate-400 text-center py-8">
-            (해당 단계 항목 없음)
-          </div>
+          <EmptyHint />
         ) : (
           items.map((p) => (
-            <DraggableCard
-              key={p.id}
-              p={p}
-              draggable={draggable}
-              manageToken={manageToken}
-            />
+            <DraggableCard key={p.id} p={p} manageToken={manageToken} />
           ))
         )}
       </div>
@@ -187,39 +242,57 @@ function StageColumn({
 
 function DraggableCard({
   p,
-  draggable,
   manageToken,
 }: {
   p: ProjectListItem;
-  draggable: boolean;
-  manageToken?: string;
+  manageToken: string;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: p.id,
-    disabled: !draggable,
   });
 
-  // drag 가 활성화되면 native <a> 의 link 동작이 dnd-kit pointer 를 가로채므로
-  // 카드 본체를 div 로 만들고, 별도 "상세 보기" 링크를 우측 상단에 분리.
   return (
     <div
       ref={setNodeRef}
       style={{
         opacity: isDragging ? 0.4 : 1,
-        touchAction: draggable ? "none" : "auto",
+        touchAction: "none",
       }}
-      {...(draggable ? listeners : {})}
-      {...(draggable ? attributes : {})}
-      className={`relative bg-white rounded-lg border border-slate-200 p-3 hover:shadow-md hover:border-haro-500 transition ${
-        draggable ? "cursor-grab active:cursor-grabbing select-none" : ""
-      }`}
+      {...listeners}
+      {...attributes}
+      className="relative bg-white rounded-lg border border-slate-200 p-3 hover:shadow-md hover:border-haro-500 transition cursor-grab active:cursor-grabbing select-none"
     >
-      <CardInner p={p} manageToken={manageToken} dragHandle={draggable} />
+      <CardInner p={p} manageToken={manageToken} dragHandle />
+    </div>
+  );
+}
+
+// ── 공용 부품 ────────────────────────────────────────
+
+function ColumnHeader({ stage, count }: { stage: Stage; count: number }) {
+  return (
+    <>
+      <div className="flex items-baseline justify-between mb-1">
+        <h2 className="font-bold text-base">{STAGE_LABEL[stage]}</h2>
+        <span className="text-xs text-slate-500 font-semibold">{count}건</span>
+      </div>
+      <p className="text-xs text-slate-500 mb-3 pb-3 border-b border-slate-200">
+        {STAGE_DESC[stage]}
+      </p>
+    </>
+  );
+}
+
+function EmptyHint() {
+  return (
+    <div className="text-xs text-slate-400 text-center py-8">
+      (해당 단계 항목 없음)
     </div>
   );
 }
 
 function CardView({ p, dragging }: { p: ProjectListItem; dragging?: boolean }) {
+  // DragOverlay 안에서만 사용 — link 없는 단순 카드
   return (
     <div
       className={`block bg-white rounded-lg border border-slate-200 p-3 ${
