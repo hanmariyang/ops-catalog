@@ -28,12 +28,15 @@ import { useViewportSize } from "@/lib/use-viewport";
 const STAGES: Stage[] = [1, 2, 3, 4];
 
 /**
- * 한 분면이 전체의 BIG_RATIO 초과면 그 분면이 row 1 전체 차지 (1+3 레이아웃).
- * 이하면 2x2 균등.
+ * 패널 배치 (md+):
+ *   ┌────┬────┬────┐
+ *   │    │    │ C1 │  (1단계 = A · 2단계 = B · 3단계 = C-1 · 기타 = C-2)
+ *   │ A  │ B  ├────┤
+ *   │    │    │ C2 │
+ *   └────┴────┴────┘
+ * sm: 4x1 세로 stack
  */
-const BIG_RATIO = 0.4;
-
-type LayoutKind = "stack" | "two-by-two" | "one-plus-three";
+type LayoutKind = "stack" | "abc";
 
 type Props = {
   initialItems: ProjectListItem[];
@@ -41,16 +44,13 @@ type Props = {
 };
 
 /**
- * 카탈로그 보드 — 분포 적응형 4분면.
+ * 카탈로그 보드 — 고정 3패널 레이아웃.
  *
- * 화면 크기 + 카드 수 분포에 따라 grid 형태 *자체* 가 바뀜:
- * - sm: 4x1 stack (세로)
- * - md: 항상 2x2 균등
- * - lg+: 분포 따라
- *   - 모든 단계 비슷 (max ratio ≤ 0.4) → 2x2 균등
- *   - 한 단계 압도 (max ratio > 0.4) → 1+3 (큰 셀이 1행 전체, 나머지 3개가 2행)
+ * - md+: A | B | C 3 컬럼, C 는 위아래 2등분 (C-1, C-2)
+ *   · A = 1단계 / B = 2단계 / C-1 = 3단계 / C-2 = 기타
+ * - sm: 4x1 세로 stack
  *
- * 좌우 폭 비례가 아니라 cell 배치 자체가 바뀌는 반응형.
+ * 패널 라벨(A/B/C-1/C-2)은 표기하지 않고, 단계 라벨만 헤더에 표시.
  */
 export function Kanban({ initialItems, manageToken }: Props) {
   const [items, setItems] = useState(initialItems);
@@ -134,51 +134,32 @@ export function Kanban({ initialItems, manageToken }: Props) {
 
   const dndActive = mounted && !!manageToken;
 
-  // 가장 큰 분면 + 비율 산출
-  const total = counts[1] + counts[2] + counts[3] + counts[4];
-  const biggestStage: Stage = STAGES.reduce((acc, s) =>
-    counts[s] > counts[acc] ? s : acc
-  );
-  const maxRatio = total > 0 ? counts[biggestStage] / total : 0;
-
-  // 레이아웃 종류 결정
-  const layout: LayoutKind = !mounted
-    ? "two-by-two"
-    : size === "sm"
-    ? "stack"
-    : size === "md"
-    ? "two-by-two"
-    : maxRatio > BIG_RATIO
-    ? "one-plus-three"
-    : "two-by-two";
+  // sm 만 stack, 나머지(SSR/md/lg) 모두 ABC
+  const layout: LayoutKind = mounted && size === "sm" ? "stack" : "abc";
 
   // grid 컨테이너 스타일
   const gridStyle: React.CSSProperties =
     layout === "stack"
       ? { gridTemplateColumns: "1fr", gridAutoRows: "minmax(180px, auto)" }
-      : layout === "two-by-two"
-      ? {
-          gridTemplateColumns: "1fr 1fr",
+      : {
+          gridTemplateColumns: "1fr 1fr 1fr",
           gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)",
-          height: "calc(100vh - 130px)",
-        }
-      : // one-plus-three: 큰 셀이 1행 전체 (3 col span), 나머지 3개가 2행 1x3
-        {
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gridTemplateRows: "minmax(0, 1.1fr) minmax(0, 1fr)",
           height: "calc(100vh - 130px)",
         };
 
-  // 각 cell 의 명시적 grid 위치 — 자동 placement 충돌 방지
+  // ABC 패널: A·B 는 좌측 2 컬럼 전체 높이, C-1/C-2 는 우측 컬럼 위/아래
   const cellStyle = (stage: Stage): React.CSSProperties => {
-    if (layout !== "one-plus-three") return {};
-    if (stage === biggestStage) {
-      return { gridColumn: "1 / -1", gridRow: 1 };
+    if (layout !== "abc") return {};
+    switch (stage) {
+      case 1: // A
+        return { gridColumn: 1, gridRow: "1 / -1" };
+      case 2: // B
+        return { gridColumn: 2, gridRow: "1 / -1" };
+      case 3: // C-1
+        return { gridColumn: 3, gridRow: 1 };
+      case 4: // C-2
+        return { gridColumn: 3, gridRow: 2 };
     }
-    // biggest 를 제외한 나머지를 STAGES 순서대로 row 2 에 배치
-    const others = STAGES.filter((s) => s !== biggestStage);
-    const idx = others.indexOf(stage);
-    return { gridColumn: idx + 1, gridRow: 2 };
   };
 
   return (
