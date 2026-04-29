@@ -3,8 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f8fafc;
+  --bg: #e2e8f0;
 }
 
-html, body { background: var(--bg); }
-body { color: #0f172a; }
+html, body {
+  height: 100vh;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: #0f172a;
+}

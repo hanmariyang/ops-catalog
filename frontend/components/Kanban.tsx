@@ -137,14 +137,18 @@ export function Kanban({ initialItems, manageToken }: Props) {
   // sm 만 stack, 나머지(SSR/md/lg) 모두 ABC
   const layout: LayoutKind = mounted && size === "sm" ? "stack" : "abc";
 
-  // grid 컨테이너 스타일
+  // grid 컨테이너 스타일 — main 의 flex-1 영역(layout 에서 처리) 100% 차지
   const gridStyle: React.CSSProperties =
     layout === "stack"
-      ? { gridTemplateColumns: "1fr", gridAutoRows: "minmax(180px, auto)" }
+      ? {
+          gridTemplateColumns: "1fr",
+          gridAutoRows: "minmax(180px, 1fr)",
+          height: "100%",
+        }
       : {
           gridTemplateColumns: "1fr 1fr 1fr",
           gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)",
-          height: "calc(100vh - 130px)",
+          height: "100%",
         };
 
   // ABC 패널: A·B 는 좌측 2 컬럼 전체 높이, C-1/C-2 는 우측 컬럼 위/아래
@@ -163,14 +167,14 @@ export function Kanban({ initialItems, manageToken }: Props) {
   };
 
   return (
-    <div>
+    <div className="h-full flex flex-col min-h-0">
       {error && (
-        <div className="mb-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded">
+        <div className="mb-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded flex-shrink-0">
           {error}
         </div>
       )}
       {!manageToken && (
-        <div className="mb-2 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded">
+        <div className="mb-2 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded flex-shrink-0">
           🔒 익명 모드 — 카드는 클릭만 가능. 단계 변경은 매니저 권한 필요.
         </div>
       )}
@@ -182,7 +186,7 @@ export function Kanban({ initialItems, manageToken }: Props) {
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         >
-          <div className="grid gap-2" style={gridStyle}>
+          <div className="flex-1 grid gap-2 min-h-0" style={gridStyle}>
             {STAGES.map((stage) => (
               <DroppableColumn
                 key={stage}
@@ -198,7 +202,7 @@ export function Kanban({ initialItems, manageToken }: Props) {
           </DragOverlay>
         </DndContext>
       ) : (
-        <div className="grid gap-2" style={gridStyle}>
+        <div className="flex-1 grid gap-2 min-h-0" style={gridStyle}>
           {STAGES.map((stage) => (
             <StaticColumn
               key={stage}
@@ -362,18 +366,20 @@ function ColumnFrame({
     <section
       ref={droppableRef}
       style={{ ...cellStyle, minHeight: 0 }}
-      className={`bg-slate-100 rounded-lg flex flex-col transition min-w-0 ${
-        highlight ? "ring-2 ring-haro-500 bg-haro-50" : ""
+      className={`bg-white rounded-lg flex flex-col transition min-w-0 border-2 shadow-sm ${
+        highlight
+          ? "ring-2 ring-haro-500 bg-haro-50 border-haro-500"
+          : "border-slate-300"
       }`}
     >
-      {/* 헤더 (sticky 안에서 항상 위) */}
-      <header className="px-2.5 pt-2 pb-1.5 border-b border-slate-200 flex-shrink-0">
+      {/* 헤더 — 패널 구분 분명하게, slate 배경 */}
+      <header className="px-2.5 pt-2 pb-1.5 border-b-2 border-slate-200 flex-shrink-0 bg-slate-50 rounded-t-md">
         <div className="flex items-center gap-1.5">
-          <span className={`w-1 h-3.5 rounded-sm ${STAGE_ACCENT[stage]}`} />
-          <h2 className="font-bold text-[12.5px] flex-1 truncate">
+          <span className={`w-1 h-4 rounded-sm ${STAGE_ACCENT[stage]}`} />
+          <h2 className="font-bold text-[12.5px] flex-1 truncate text-slate-800">
             {STAGE_LABEL[stage]}
           </h2>
-          <span className="text-[10px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded">
+          <span className="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
             {count}
           </span>
         </div>
@@ -383,7 +389,7 @@ function ColumnFrame({
       </header>
 
       {/* 카드 리스트 (자체 scroll) */}
-      <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-1">
+      <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-1 bg-slate-50/30">
         {children}
       </div>
     </section>
