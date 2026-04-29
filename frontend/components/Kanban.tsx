@@ -137,16 +137,22 @@ export function Kanban({ initialItems, manageToken }: Props) {
   // sm 만 stack, 나머지(SSR/md/lg) 모두 ABC
   const layout: LayoutKind = mounted && size === "sm" ? "stack" : "abc";
 
-  // grid 컨테이너 스타일 — height 는 부모(flex-1) 가 결정. inline height 박지 X
+  // grid 컨테이너 스타일.
+  // height: '100%' 명시 — 부모가 flex container 일 때 grid track 을 정확히 1:1 분배하려면
+  // 명시적 height 가 안전 (flex-1 만으로는 일부 브라우저에서 implicit content sizing 발동).
   const gridStyle: React.CSSProperties =
     layout === "stack"
       ? {
           gridTemplateColumns: "1fr",
           gridAutoRows: "minmax(180px, 1fr)",
+          height: "100%",
         }
       : {
-          gridTemplateColumns: "1fr 1fr 1fr",
+          // minmax(0,1fr) — 카드 content 영향 차단, 강제 50:50 분배.
+          // height:100% — 부모 flex 가 정확한 height 못 줄 때 보강.
+          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)",
           gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)",
+          height: "100%",
         };
 
   // ABC 패널: A·B 는 좌측 2 컬럼 전체 높이, C-1/C-2 는 우측 컬럼 위/아래
