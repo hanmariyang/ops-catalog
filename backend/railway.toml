@@ -6,5 +6,4 @@ dockerfilePath = "Dockerfile"
 startCommand = "/app/entrypoint.sh"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
-healthcheckPath = "/health/"
-healthcheckTimeout = 30
+# healthcheck 비활성 — 컨테이너 부팅만 확인. 인증 도입 후 재활성 가능.
