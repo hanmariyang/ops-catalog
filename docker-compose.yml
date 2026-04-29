@@ -62,6 +62,9 @@ services:
       - BACKEND_API_URL=http://backend:8000
       - DOCKER_ENV=true
       - NEXT_PUBLIC_DOCKER_ENV=true
+      # Mac docker mounted volume 의 file watch 안정화 (chokidar polling)
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
     depends_on:
       - backend
     networks:

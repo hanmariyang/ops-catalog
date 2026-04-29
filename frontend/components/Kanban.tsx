@@ -402,8 +402,9 @@ function ColumnFrame({
         </p>
       </header>
 
-      {/* 카드 리스트 (자체 scroll) */}
-      <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-1">
+      {/* 카드 리스트 (자체 scroll) — min-h-0 필수: flex item 의 default min-height:auto 가
+          자식 content 크기로 작용하면 overflow-y 가 동작 안 한다. */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-1.5 py-1.5 space-y-1">
         {children}
       </div>
     </section>
