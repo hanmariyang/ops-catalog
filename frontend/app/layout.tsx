@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+
+import { AuthBadge } from "@/components/AuthBadge";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,9 +29,13 @@ export default function RootLayout({
               <div className="text-xs font-bold text-haro-600 tracking-wider">OPS-CATALOG</div>
               <h1 className="text-lg font-bold mt-0.5">교육운영실 프로젝트 카탈로그</h1>
             </div>
-            <div className="text-xs text-slate-500">
-              public · read-only
-            </div>
+            <Suspense
+              fallback={
+                <span className="text-xs text-slate-500">public · read-only</span>
+              }
+            >
+              <AuthBadge />
+            </Suspense>
           </div>
         </header>
         <main className="max-w-screen-2xl mx-auto px-6 py-6">{children}</main>

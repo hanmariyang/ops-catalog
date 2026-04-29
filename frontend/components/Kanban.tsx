@@ -126,6 +126,7 @@ export function Kanban({ initialItems, manageToken }: Props) {
               stage={stage}
               items={byStage(stage)}
               draggable={!!manageToken}
+              manageToken={manageToken}
             />
           ))}
         </div>
@@ -141,10 +142,12 @@ function StageColumn({
   stage,
   items,
   draggable,
+  manageToken,
 }: {
   stage: Stage;
   items: ProjectListItem[];
   draggable: boolean;
+  manageToken?: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage}` });
 
@@ -168,7 +171,14 @@ function StageColumn({
             (해당 단계 항목 없음)
           </div>
         ) : (
-          items.map((p) => <DraggableCard key={p.id} p={p} draggable={draggable} />)
+          items.map((p) => (
+            <DraggableCard
+              key={p.id}
+              p={p}
+              draggable={draggable}
+              manageToken={manageToken}
+            />
+          ))
         )}
       </div>
     </div>
@@ -178,40 +188,63 @@ function StageColumn({
 function DraggableCard({
   p,
   draggable,
+  manageToken,
 }: {
   p: ProjectListItem;
   draggable: boolean;
+  manageToken?: string;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: p.id,
     disabled: !draggable,
   });
 
+  // drag 가 활성화되면 native <a> 의 link 동작이 dnd-kit pointer 를 가로채므로
+  // 카드 본체를 div 로 만들고, 별도 "상세 보기" 링크를 우측 상단에 분리.
   return (
     <div
       ref={setNodeRef}
-      style={{ opacity: isDragging ? 0.4 : 1 }}
+      style={{
+        opacity: isDragging ? 0.4 : 1,
+        touchAction: draggable ? "none" : "auto",
+      }}
       {...(draggable ? listeners : {})}
       {...(draggable ? attributes : {})}
-      className={draggable ? "touch-none cursor-grab active:cursor-grabbing" : ""}
+      className={`relative bg-white rounded-lg border border-slate-200 p-3 hover:shadow-md hover:border-haro-500 transition ${
+        draggable ? "cursor-grab active:cursor-grabbing select-none" : ""
+      }`}
     >
-      <CardView p={p} />
+      <CardInner p={p} manageToken={manageToken} dragHandle={draggable} />
     </div>
   );
 }
 
 function CardView({ p, dragging }: { p: ProjectListItem; dragging?: boolean }) {
   return (
-    <Link
-      href={`/projects/${p.id}`}
-      onClick={(e) => {
-        // 드래그 중에는 클릭 무시
-        if (dragging) e.preventDefault();
-      }}
-      className={`block bg-white rounded-lg border border-slate-200 p-3 hover:shadow-md hover:border-haro-500 transition ${
+    <div
+      className={`block bg-white rounded-lg border border-slate-200 p-3 ${
         dragging ? "shadow-lg border-haro-500 rotate-1" : ""
       }`}
     >
+      <CardInner p={p} dragHandle={false} />
+    </div>
+  );
+}
+
+function CardInner({
+  p,
+  manageToken,
+  dragHandle,
+}: {
+  p: ProjectListItem;
+  manageToken?: string;
+  dragHandle: boolean;
+}) {
+  const detailHref = manageToken
+    ? `/projects/${p.id}?token=${manageToken}`
+    : `/projects/${p.id}`;
+  return (
+    <>
       <div className="flex items-center gap-2 mb-1.5">
         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${TIER_COLOR[p.tier]}`}>
           {p.category_code}
@@ -222,12 +255,25 @@ function CardView({ p, dragging }: { p: ProjectListItem; dragging?: boolean }) {
         <span className="text-[10px] font-bold text-haro-600 bg-haro-50 px-1.5 py-0.5 rounded">
           R{p.source_id}
         </span>
+        <Link
+          href={detailHref}
+          draggable={false}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="ml-auto text-[10px] text-slate-400 hover:text-haro-600 hover:underline"
+        >
+          상세 →
+        </Link>
       </div>
       <div className="text-sm font-semibold leading-snug line-clamp-2">{p.title}</div>
       <div className="text-xs text-slate-500 mt-1.5 flex justify-between">
         <span>{p.proposer_display}</span>
         <span>{p.category_title}</span>
       </div>
-    </Link>
+      {dragHandle && (
+        <div className="text-[9px] text-slate-300 mt-1 leading-none select-none">
+          ⋮⋮ 드래그로 단계 이동 · 상세는 우측 링크
+        </div>
+      )}
+    </>
   );
 }
