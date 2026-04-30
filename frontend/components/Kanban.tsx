@@ -40,7 +40,6 @@ type LayoutKind = "stack" | "abc";
 
 type Props = {
   initialItems: ProjectListItem[];
-  manageToken?: string;
 };
 
 /**
@@ -50,9 +49,9 @@ type Props = {
  *   · A = 1단계 / B = 2단계 / C-1 = 3단계 / C-2 = 기타
  * - sm: 4x1 세로 stack
  *
- * 패널 라벨(A/B/C-1/C-2)은 표기하지 않고, 단계 라벨만 헤더에 표시.
+ * 인증 도입 전: 누구나 드래그·편집·생성 가능.
  */
-export function Kanban({ initialItems, manageToken }: Props) {
+export function Kanban({ initialItems }: Props) {
   const [items, setItems] = useState(initialItems);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,11 +90,6 @@ export function Kanban({ initialItems, manageToken }: Props) {
     const item = items.find((p) => p.id === projectId);
     if (!item || item.stage === target) return;
 
-    if (!manageToken) {
-      setError("매니저 토큰이 필요합니다 — /login 에서 로그인하세요.");
-      return;
-    }
-
     const prevStage = item.stage;
     setItems((prev) =>
       prev.map((p) => (p.id === projectId ? { ...p, stage: target } : p))
@@ -108,7 +102,6 @@ export function Kanban({ initialItems, manageToken }: Props) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Manage-Token": manageToken,
           },
           body: JSON.stringify({
             to_stage: target,
@@ -132,7 +125,8 @@ export function Kanban({ initialItems, manageToken }: Props) {
     }
   };
 
-  const dndActive = mounted && !!manageToken;
+  // mount 후 + 데스크탑이면 dnd 활성. SSR/sm/익명 어느 단계든 정적 보드 fallback.
+  const dndActive = mounted && size !== "sm";
 
   // sm 만 stack, 나머지(SSR/md/lg) 모두 ABC
   const layout: LayoutKind = mounted && size === "sm" ? "stack" : "abc";
@@ -171,10 +165,9 @@ export function Kanban({ initialItems, manageToken }: Props) {
   };
 
   // alert 가 있으면 그 행이 추가, 없으면 보드 한 개 행만.
-  const hasAlert = !!error || !manageToken;
   const outerStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateRows: hasAlert ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)",
+    gridTemplateRows: error ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)",
     gap: "0.5rem",
     height: "100%",
     minHeight: 0,
@@ -185,11 +178,6 @@ export function Kanban({ initialItems, manageToken }: Props) {
       {error && (
         <div className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded">
           {error}
-        </div>
-      )}
-      {!error && !manageToken && (
-        <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded">
-          🔒 익명 모드 — 카드는 클릭만 가능. 단계 변경은 매니저 권한 필요.
         </div>
       )}
 
@@ -206,7 +194,6 @@ export function Kanban({ initialItems, manageToken }: Props) {
                 key={stage}
                 stage={stage}
                 items={byStage(stage)}
-                manageToken={manageToken}
                 cellStyle={cellStyle(stage)}
               />
             ))}
@@ -222,7 +209,6 @@ export function Kanban({ initialItems, manageToken }: Props) {
               key={stage}
               stage={stage}
               items={byStage(stage)}
-              manageToken={manageToken}
               cellStyle={cellStyle(stage)}
             />
           ))}
@@ -236,33 +222,23 @@ export function Kanban({ initialItems, manageToken }: Props) {
 function StaticColumn({
   stage,
   items,
-  manageToken,
   cellStyle,
 }: {
   stage: Stage;
   items: ProjectListItem[];
-  manageToken?: string;
   cellStyle: React.CSSProperties;
 }) {
   return (
     <ColumnFrame stage={stage} count={items.length} cellStyle={cellStyle}>
-      {renderCardsWithCategoryHeaders(items, (p) => (
-        <StaticCard p={p} manageToken={manageToken} />
-      ))}
+      {renderCardsWithCategoryHeaders(items, (p) => <StaticCard p={p} />)}
     </ColumnFrame>
   );
 }
 
-function StaticCard({
-  p,
-  manageToken,
-}: {
-  p: ProjectListItem;
-  manageToken?: string;
-}) {
+function StaticCard({ p }: { p: ProjectListItem }) {
   return (
     <div className="relative bg-white rounded-md border border-slate-200 px-2 py-1.5 hover:border-haro-500 transition">
-      <CardInner p={p} manageToken={manageToken} dragHandle={false} />
+      <CardInner p={p} dragHandle={false} />
     </div>
   );
 }
@@ -271,12 +247,10 @@ function StaticCard({
 function DroppableColumn({
   stage,
   items,
-  manageToken,
   cellStyle,
 }: {
   stage: Stage;
   items: ProjectListItem[];
-  manageToken: string;
   cellStyle: React.CSSProperties;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage}` });
@@ -288,20 +262,12 @@ function DroppableColumn({
       highlight={isOver}
       cellStyle={cellStyle}
     >
-      {renderCardsWithCategoryHeaders(items, (p) => (
-        <DraggableCard p={p} manageToken={manageToken} />
-      ))}
+      {renderCardsWithCategoryHeaders(items, (p) => <DraggableCard p={p} />)}
     </ColumnFrame>
   );
 }
 
-function DraggableCard({
-  p,
-  manageToken,
-}: {
-  p: ProjectListItem;
-  manageToken: string;
-}) {
+function DraggableCard({ p }: { p: ProjectListItem }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: p.id,
   });
@@ -317,7 +283,7 @@ function DraggableCard({
       {...attributes}
       className="relative bg-white rounded-md border border-slate-200 px-2 py-1.5 hover:border-haro-500 transition cursor-grab active:cursor-grabbing select-none"
     >
-      <CardInner p={p} manageToken={manageToken} dragHandle />
+      <CardInner p={p} dragHandle />
     </div>
   );
 }
@@ -434,16 +400,12 @@ function CardView({ p, dragging }: { p: ProjectListItem; dragging?: boolean }) {
 
 function CardInner({
   p,
-  manageToken,
-  dragHandle,
+  dragHandle: _dragHandle,
 }: {
   p: ProjectListItem;
-  manageToken?: string;
   dragHandle: boolean;
 }) {
-  const detailHref = manageToken
-    ? `/projects/${p.id}?token=${manageToken}`
-    : `/projects/${p.id}`;
+  const detailHref = `/projects/${p.id}`;
   return (
     <>
       <div className="flex items-start gap-1.5">

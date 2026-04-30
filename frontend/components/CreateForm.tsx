@@ -8,7 +8,6 @@ import { DIFFICULTY_LABEL, STATUS_LABEL } from "@/lib/labels";
 
 type Props = {
   categories: Category[];
-  manageToken: string;
 };
 
 const PRIORITY_OPTIONS = ["unset", "P0", "P1", "P2", "P3"] as const;
@@ -17,7 +16,7 @@ const PRIORITY_OPTIONS = ["unset", "P0", "P1", "P2", "P3"] as const;
  * 신규 카탈로그 항목 생성 폼.
  * source_id 는 백엔드에서 자동 부여 (max+1, 1000 이상 시스템 생성).
  */
-export function CreateForm({ categories, manageToken }: Props) {
+export function CreateForm({ categories }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -51,7 +50,6 @@ export function CreateForm({ categories, manageToken }: Props) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Manage-Token": manageToken,
           },
           body: JSON.stringify(form),
         }
@@ -65,7 +63,7 @@ export function CreateForm({ categories, manageToken }: Props) {
       setMsg({ kind: "ok", text: `생성 완료 (id=${created.id} · R${created.source_id})` });
       // 새 항목 상세 페이지로 이동
       setTimeout(() => {
-        router.push(`/projects/${created.id}?token=${manageToken}`);
+        router.push(`/projects/${created.id}`);
       }, 600);
     } catch (err) {
       setMsg({ kind: "err", text: (err as Error).message });

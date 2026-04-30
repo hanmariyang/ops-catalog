@@ -1,9 +1,7 @@
 /**
- * 매니저 액션 페이지 (D15) — hidden token URL.
+ * 매니저 페이지 — 신규 카탈로그 항목 생성.
  *
- * 사용: /manage?token=<MANAGE_TOKEN>
- * - 신규 카탈로그 항목 생성 폼
- * - 카탈로그 / Django admin 으로의 빠른 링크
+ * 인증 도입 전 누구나 접근 가능. 인증 활성화 후 staff 만 허용.
  */
 
 import Link from "next/link";
@@ -11,49 +9,24 @@ import Link from "next/link";
 import { CreateForm } from "@/components/CreateForm";
 import { listCategories } from "@/lib/api";
 
-type SearchParams = { token?: string };
-
-export default async function ManagePage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
-  const sp = await searchParams;
-  const token = sp.token || "";
-  const expected = process.env.MANAGE_TOKEN || "";
-  const ok = !!expected && token === expected;
-
-  if (!ok) {
-    return (
-      <div className="max-w-2xl mx-auto py-12 text-center">
-        <div className="text-2xl font-bold text-slate-700">접근 권한 없음</div>
-        <p className="text-sm text-slate-500 mt-2">
-          이 페이지는 매니저 토큰이 필요합니다. URL 파라미터를 확인하세요.
-        </p>
-        <p className="text-xs text-slate-400 mt-4">
-          (인증 권한 도입 후 정식 로그인으로 대체될 예정)
-        </p>
-      </div>
-    );
-  }
-
+export default async function ManagePage() {
   const categoriesRes = await listCategories();
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
 
   return (
-    <div className="max-w-4xl mx-auto py-2">
-      <div className="text-xs font-bold text-haro-600 tracking-wider">MANAGER MODE</div>
+    <div className="max-w-4xl mx-auto py-2 overflow-y-auto">
+      <div className="text-xs font-bold text-haro-600 tracking-wider">
+        MANAGER
+      </div>
       <div className="flex items-baseline gap-3">
-        <h1 className="text-2xl font-bold mt-1">매니저 액션</h1>
-        <Link
-          href={`/?token=${token}`}
-          className="text-xs text-haro-600 hover:underline"
-        >
-          ← 카탈로그 (매니저 모드)
+        <h1 className="text-2xl font-bold mt-1">신규 항목 추가</h1>
+        <Link href="/" className="text-xs text-haro-600 hover:underline">
+          ← 카탈로그
         </Link>
       </div>
       <p className="text-sm text-slate-500 mt-2">
-        D15 — 인증 도입 전 hidden token URL. 모든 write 액션은 매니저만.
+        인증 도입 전 운영 단계. 누구나 추가/수정 가능.
       </p>
 
       <section className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -63,17 +36,17 @@ export default async function ManagePage({
           href={`${apiBase}/admin`}
         />
         <Card
-          title="API — 단계 승급/강등"
-          description={`POST /api/v1/projects/{id}/advance-stage/\nheaders: { "X-Manage-Token": "..." }`}
+          title="API"
+          description={`POST /api/v1/projects/\nPOST /api/v1/projects/{id}/advance-stage/`}
         />
       </section>
 
       <div className="mt-8">
-        <CreateForm categories={categoriesRes.results} manageToken={token} />
+        <CreateForm categories={categoriesRes.results} />
       </div>
 
       <div className="mt-6 text-xs text-slate-500">
-        💡 기존 항목 수정은 카탈로그 → 카드 클릭 → 상세 페이지의 인라인 편집 폼.
+        💡 기존 항목 수정은 카탈로그 → 카드의 → 링크 → 상세 페이지의 인라인 편집 폼.
       </div>
     </div>
   );
@@ -91,7 +64,9 @@ function Card({
   const inner = (
     <>
       <h3 className="font-bold text-sm">{title}</h3>
-      <p className="text-xs text-slate-600 mt-1.5 whitespace-pre-wrap">{description}</p>
+      <p className="text-xs text-slate-600 mt-1.5 whitespace-pre-wrap">
+        {description}
+      </p>
     </>
   );
   return href ? (

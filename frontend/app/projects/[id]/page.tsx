@@ -1,8 +1,8 @@
 /**
- * 프로젝트 상세 (퍼블릭 read-only).
+ * 프로젝트 상세.
  *
- * 위쪽: 엑셀 원문 (immutable, 박제) — 시각적으로 구분
- * 아래쪽: 평가·진행 (가변) + 추천 단계
+ * 위쪽: 엑셀 원문 (immutable, 박제)
+ * 아래쪽: 평가·진행 (가변) + 추천 단계 + 인라인 편집 폼
  */
 
 import Link from "next/link";
@@ -21,15 +21,10 @@ import {
 
 export default async function ProjectDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ token?: string }>;
 }) {
   const { id } = await params;
-  const { token } = await searchParams;
-  const expected = process.env.MANAGE_TOKEN || "";
-  const manageToken = expected && token === expected ? token : "";
 
   let p;
   try {
@@ -37,19 +32,13 @@ export default async function ProjectDetailPage({
   } catch {
     notFound();
   }
-  const categoriesRes = manageToken ? await listCategories() : null;
+  const categoriesRes = await listCategories();
 
-  const homeBack = manageToken ? `/?token=${manageToken}` : "/";
   return (
-    <div className="max-w-4xl mx-auto">
-      <Link href={homeBack} className="text-xs text-haro-600 hover:underline">
+    <div className="max-w-4xl mx-auto overflow-y-auto">
+      <Link href="/" className="text-xs text-haro-600 hover:underline">
         ← 카탈로그로
       </Link>
-      {manageToken && (
-        <span className="ml-3 text-xs text-haro-600 font-semibold bg-haro-50 px-2 py-0.5 rounded">
-          매니저 모드 ON
-        </span>
-      )}
 
       <div className="mt-3 flex items-center gap-2">
         <span className={`text-xs font-bold px-2 py-0.5 rounded ${TIER_COLOR[p.tier]}`}>
@@ -98,10 +87,8 @@ export default async function ProjectDetailPage({
         </dl>
       </section>
 
-      {/* 매니저 편집 폼 (token 있을 때만) */}
-      {manageToken && categoriesRes && (
-        <EditForm project={p} categories={categoriesRes.results} manageToken={manageToken} />
-      )}
+      {/* 인라인 편집 폼 — 누구나 편집 가능 */}
+      <EditForm project={p} categories={categoriesRes.results} />
 
       {/* 단계 변동 이력 */}
       {p.stage_transitions.length > 0 && (

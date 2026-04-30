@@ -9,14 +9,12 @@ import { DIFFICULTY_LABEL, STATUS_LABEL } from "@/lib/labels";
 type Props = {
   project: ProjectDetail;
   categories: Category[];
-  manageToken: string;
 };
 
 /**
- * 매니저 인라인 편집 폼.
- * 가변 필드만 노출 (원문 박제 영역은 변경 X — D9).
+ * 인라인 편집 폼. 가변 필드만 노출 (원문 박제 영역은 변경 X — D9).
  */
-export function EditForm({ project, categories, manageToken }: Props) {
+export function EditForm({ project, categories }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -51,10 +49,7 @@ export function EditForm({ project, categories, manageToken }: Props) {
         `/api/v1/projects/${project.id}/`,
         {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Manage-Token": manageToken,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         }
       );
@@ -79,7 +74,7 @@ export function EditForm({ project, categories, manageToken }: Props) {
     >
       <div className="flex items-center justify-between mb-3">
         <div className="text-[10px] font-bold text-amber-700 tracking-wider">
-          매니저 인라인 편집
+          인라인 편집
         </div>
         {msg && (
           <span

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 
 import { AuthBadge } from "@/components/AuthBadge";
 import "./globals.css";
@@ -37,13 +36,7 @@ export default function RootLayout({
               </span>
               <h1 className="text-sm font-bold truncate">교육운영실 프로젝트 카탈로그</h1>
             </div>
-            <Suspense
-              fallback={
-                <span className="text-xs text-slate-500">public · read-only</span>
-              }
-            >
-              <AuthBadge />
-            </Suspense>
+            <AuthBadge />
           </div>
         </header>
         <main className="overflow-hidden px-3 sm:px-4 py-2 min-h-0 grid">
