@@ -16,18 +16,9 @@ const nextConfig = {
       },
     ];
   },
-  // Same-origin proxy — client 가 /api/* 호출 시 backend 로 server-side 전달.
-  // 이렇게 하면 NEXT_PUBLIC_API_URL 의 build-time inline 문제를 회피
-  // (BACKEND_API_URL 은 runtime 환경변수이므로 dev/prod 어디든 동작).
-  async rewrites() {
-    const backend =
-      process.env.BACKEND_API_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      "http://localhost:8002";
-    return [
-      { source: "/api/:path*", destination: `${backend}/api/:path*` },
-    ];
-  },
+  // /api/* 의 same-origin proxy 는 app/api/[...path]/route.ts 에서 처리.
+  // rewrites() 의 destination 은 빌드 시 manifest 에 박혀서 prod 환경변수 갱신 안 됨 —
+  // Route Handler 가 runtime 에서 매번 process.env.BACKEND_API_URL 읽음.
 };
 
 export default nextConfig;
