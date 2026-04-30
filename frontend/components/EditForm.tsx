@@ -46,7 +46,7 @@ export function EditForm({ project, categories }: Props) {
     setMsg(null);
     try {
       const res = await fetch(
-        `/api/v1/projects/${project.id}/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/projects/${project.id}/`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

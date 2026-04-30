@@ -45,7 +45,7 @@ export function CreateForm({ categories }: Props) {
     setMsg(null);
     try {
       const res = await fetch(
-        `/api/v1/projects/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/projects/`,
         {
           method: "POST",
           headers: {

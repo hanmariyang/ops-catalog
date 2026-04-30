@@ -97,7 +97,7 @@ export function Kanban({ initialItems }: Props) {
 
     try {
       const res = await fetch(
-        `/api/v1/projects/${projectId}/advance-stage/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/projects/${projectId}/advance-stage/`,
         {
           method: "POST",
           headers: {
