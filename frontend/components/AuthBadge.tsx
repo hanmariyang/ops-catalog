@@ -24,6 +24,7 @@ export function AuthBadge() {
     }
     setValid(null);
     fetch(`/api/v1/auth/verify/`, {
+      cache: "no-store",
       headers: { "X-Manage-Token": token },
     })
       .then((r) => r.json())
