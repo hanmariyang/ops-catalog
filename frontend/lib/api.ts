@@ -6,11 +6,13 @@
  */
 
 const SERVER_BASE = process.env.BACKEND_API_URL || "http://backend:8000";
-const PUBLIC_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
 
 const isServer = typeof window === "undefined";
 
-export const apiBase = isServer ? SERVER_BASE : PUBLIC_BASE;
+// 서버 컴포넌트(SSR): Docker 내부 BACKEND_API_URL 직접 호출 (절대 URL 필요).
+// 클라이언트(브라우저): same-origin proxy ('/api/*' → next.config rewrites → backend).
+//   build-time NEXT_PUBLIC_* inline 의존성 제거.
+export const apiBase = isServer ? SERVER_BASE : "";
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${apiBase}${path}`, {

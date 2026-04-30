@@ -23,7 +23,7 @@ export function AuthBadge() {
       return;
     }
     setValid(null);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/auth/verify/`, {
+    fetch(`/api/v1/auth/verify/`, {
       headers: { "X-Manage-Token": token },
     })
       .then((r) => r.json())
