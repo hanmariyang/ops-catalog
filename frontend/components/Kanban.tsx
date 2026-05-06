@@ -13,9 +13,11 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import type { ProjectListItem, Stage } from "@/lib/api";
 import {
+  GROUP_DOT,
   PRIORITY_COLOR,
   PRIORITY_LABEL,
   STAGE_ACCENT,
@@ -40,6 +42,7 @@ type LayoutKind = "stack" | "abc";
 
 type Props = {
   initialItems: ProjectListItem[];
+  archivedView?: boolean;
 };
 
 /**
@@ -51,7 +54,8 @@ type Props = {
  *
  * 인증 도입 전: 누구나 드래그·편집·생성 가능.
  */
-export function Kanban({ initialItems }: Props) {
+export function Kanban({ initialItems, archivedView = false }: Props) {
+  const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +82,45 @@ export function Kanban({ initialItems }: Props) {
   const onDragStart = (e: DragStartEvent) => {
     setActiveId(Number(e.active.id));
     setError(null);
+  };
+
+  const onArchiveToggle = async (projectId: number) => {
+    const item = items.find((p) => p.id === projectId);
+    if (!item) return;
+    const isArchived = item.status === "archived";
+    if (!isArchived) {
+      const ok = confirm(
+        "이 항목을 보관함으로 옮길까요?\n\n칸반에서 숨겨지지만 영구 삭제되지는 않습니다.\n보관함에서 언제든 복구할 수 있어요.",
+      );
+      if (!ok) return;
+    }
+    const targetStatus = isArchived ? "not_started" : "archived";
+    const prev = items;
+    // optimistic — 현재 뷰에서 즉시 제거 (보관 시 active 뷰에서, 복구 시 archived 뷰에서)
+    setItems((p) => p.filter((x) => x.id !== projectId));
+    setError(null);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/projects/${projectId}/`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: targetStatus }),
+        },
+      );
+      if (!res.ok) {
+        setItems(prev);
+        const text = await res.text();
+        setError(
+          `${isArchived ? "복구" : "보관"} 실패 (${res.status}): ${text.slice(0, 100)}`,
+        );
+        return;
+      }
+      router.refresh();
+    } catch (err) {
+      setItems(prev);
+      setError(`네트워크 오류: ${(err as Error).message}`);
+    }
   };
 
   const onDragEnd = async (e: DragEndEvent) => {
@@ -195,6 +238,8 @@ export function Kanban({ initialItems }: Props) {
                 stage={stage}
                 items={byStage(stage)}
                 cellStyle={cellStyle(stage)}
+                archivedView={archivedView}
+                onArchiveToggle={onArchiveToggle}
               />
             ))}
           </div>
@@ -210,6 +255,8 @@ export function Kanban({ initialItems }: Props) {
               stage={stage}
               items={byStage(stage)}
               cellStyle={cellStyle(stage)}
+              archivedView={archivedView}
+              onArchiveToggle={onArchiveToggle}
             />
           ))}
         </div>
@@ -223,22 +270,41 @@ function StaticColumn({
   stage,
   items,
   cellStyle,
+  archivedView,
+  onArchiveToggle,
 }: {
   stage: Stage;
   items: ProjectListItem[];
   cellStyle: React.CSSProperties;
+  archivedView: boolean;
+  onArchiveToggle: (id: number) => void;
 }) {
   return (
     <ColumnFrame stage={stage} count={items.length} cellStyle={cellStyle}>
-      {renderCardsWithCategoryHeaders(items, (p) => <StaticCard p={p} />)}
+      {renderCardsWithCategoryHeaders(items, (p) => (
+        <StaticCard p={p} archivedView={archivedView} onArchiveToggle={onArchiveToggle} />
+      ))}
     </ColumnFrame>
   );
 }
 
-function StaticCard({ p }: { p: ProjectListItem }) {
+function StaticCard({
+  p,
+  archivedView,
+  onArchiveToggle,
+}: {
+  p: ProjectListItem;
+  archivedView: boolean;
+  onArchiveToggle: (id: number) => void;
+}) {
   return (
     <div className="relative bg-white rounded-md border border-slate-200 px-2 py-1.5 hover:border-haro-500 transition">
-      <CardInner p={p} dragHandle={false} />
+      <CardInner
+        p={p}
+        dragHandle={false}
+        archivedView={archivedView}
+        onArchiveToggle={onArchiveToggle}
+      />
     </div>
   );
 }
@@ -248,10 +314,14 @@ function DroppableColumn({
   stage,
   items,
   cellStyle,
+  archivedView,
+  onArchiveToggle,
 }: {
   stage: Stage;
   items: ProjectListItem[];
   cellStyle: React.CSSProperties;
+  archivedView: boolean;
+  onArchiveToggle: (id: number) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage}` });
   return (
@@ -262,12 +332,22 @@ function DroppableColumn({
       highlight={isOver}
       cellStyle={cellStyle}
     >
-      {renderCardsWithCategoryHeaders(items, (p) => <DraggableCard p={p} />)}
+      {renderCardsWithCategoryHeaders(items, (p) => (
+        <DraggableCard p={p} archivedView={archivedView} onArchiveToggle={onArchiveToggle} />
+      ))}
     </ColumnFrame>
   );
 }
 
-function DraggableCard({ p }: { p: ProjectListItem }) {
+function DraggableCard({
+  p,
+  archivedView,
+  onArchiveToggle,
+}: {
+  p: ProjectListItem;
+  archivedView: boolean;
+  onArchiveToggle: (id: number) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: p.id,
   });
@@ -283,7 +363,12 @@ function DraggableCard({ p }: { p: ProjectListItem }) {
       {...attributes}
       className="relative bg-white rounded-md border border-slate-200 px-2 py-1.5 hover:border-haro-500 transition cursor-grab active:cursor-grabbing select-none"
     >
-      <CardInner p={p} dragHandle />
+      <CardInner
+        p={p}
+        dragHandle
+        archivedView={archivedView}
+        onArchiveToggle={onArchiveToggle}
+      />
     </div>
   );
 }
@@ -401,11 +486,16 @@ function CardView({ p, dragging }: { p: ProjectListItem; dragging?: boolean }) {
 function CardInner({
   p,
   dragHandle: _dragHandle,
+  archivedView,
+  onArchiveToggle,
 }: {
   p: ProjectListItem;
   dragHandle: boolean;
+  archivedView?: boolean;
+  onArchiveToggle?: (id: number) => void;
 }) {
   const detailHref = `/projects/${p.id}`;
+  // archivedView 일 때 = 복구 버튼, 아니면 = 보관 버튼
   return (
     <>
       <div className="flex items-start gap-1.5">
@@ -417,6 +507,26 @@ function CardInner({
         <div className="text-[12px] font-semibold leading-tight line-clamp-1 flex-1 min-w-0">
           {p.title}
         </div>
+        {onArchiveToggle && (
+          <button
+            type="button"
+            draggable={false}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onArchiveToggle(p.id);
+            }}
+            title={archivedView ? "복구 (보관 해제)" : "보관함으로"}
+            aria-label={archivedView ? "복구" : "보관"}
+            className={`text-[11px] leading-none flex-shrink-0 px-0.5 ${
+              archivedView
+                ? "text-slate-400 hover:text-emerald-600"
+                : "text-slate-400 hover:text-red-600"
+            }`}
+          >
+            {archivedView ? "↻" : "🗄"}
+          </button>
+        )}
         <Link
           href={detailHref}
           draggable={false}
@@ -432,8 +542,60 @@ function CardInner({
           {p.category_code}
         </span>
         <span className="text-slate-500 flex-shrink-0">R{p.source_id}</span>
-        <span className="text-slate-400 truncate">{p.proposer_display}</span>
+        <span className="text-slate-400 truncate flex-1 min-w-0">{p.proposer_display}</span>
+        {p.groups.length > 0 && (
+          <span
+            className="flex items-center gap-0.5 flex-shrink-0"
+            title={p.groups.map((g) => g.name).join(", ")}
+          >
+            {p.groups.slice(0, 4).map((g) => (
+              <span
+                key={g.id}
+                className={`w-1.5 h-1.5 rounded-full ${GROUP_DOT[g.color]}`}
+              />
+            ))}
+            {p.groups.length > 4 && (
+              <span className="text-slate-400">+{p.groups.length - 4}</span>
+            )}
+          </span>
+        )}
       </div>
+      {p.merged_children.length > 0 && (
+        <MergedChildrenBlock children={p.merged_children} />
+      )}
     </>
+  );
+}
+
+/**
+ * 카드 안에 흡수된 자식 프로젝트 표시.
+ * 메인 카드 본문 아래 살짝 들여쓴 dotted block.
+ */
+function MergedChildrenBlock({ children }: { children: ProjectListItem["merged_children"] }) {
+  return (
+    <div className="mt-1.5 pl-1.5 border-l-2 border-dotted border-slate-300 space-y-0.5">
+      <div className="flex items-center gap-1 text-[9px] text-slate-500 font-semibold leading-none">
+        <span>⤴</span>
+        <span>병합 ({children.length})</span>
+      </div>
+      {children.map((c) => (
+        <Link
+          key={c.id}
+          href={`/projects/${c.id}`}
+          draggable={false}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="flex items-center gap-1 text-[10px] leading-tight hover:bg-slate-50 rounded px-0.5 -mx-0.5 transition"
+          title={`${c.title} (R${c.source_id} · ${c.proposer_display})`}
+        >
+          <span
+            className={`text-[8px] font-bold px-0.5 py-px rounded leading-none flex-shrink-0 ${PRIORITY_COLOR[c.priority]}`}
+          >
+            {PRIORITY_LABEL[c.priority]}
+          </span>
+          <span className="text-slate-400 flex-shrink-0">R{c.source_id}</span>
+          <span className="text-slate-700 truncate flex-1 min-w-0">{c.title}</span>
+        </Link>
+      ))}
+    </div>
   );
 }

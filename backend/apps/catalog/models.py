@@ -100,6 +100,18 @@ class Project(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.NOT_STARTED)
     result_url = models.URLField(blank=True)
 
+    # ── 병합 (Merge) — 단일 레벨 N:1 ──
+    # 이 FK 가 set 되어 있으면 자식. 칸반 list 에서 자동 제외, 메인 카드 안에 흡수 표시.
+    # 메인이 archived/삭제되면 SET_NULL → 자식이 다시 독립 프로젝트로 복귀.
+    merged_into = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="merged_children",
+        help_text="이 프로젝트가 병합된 메인 프로젝트. 단일 레벨만 허용.",
+    )
+
     # ── PII 노출 제어 (D17) ──
     name_public = models.BooleanField(
         default=True,
@@ -163,6 +175,42 @@ class StageTransition(models.Model):
 
     def __str__(self) -> str:
         return f"{self.project} · {self.from_stage}→{self.to_stage}"
+
+
+class GroupColor(models.TextChoices):
+    SLATE = "slate", "회색"
+    ORANGE = "orange", "주황"
+    AMBER = "amber", "황색"
+    GREEN = "green", "초록"
+    CYAN = "cyan", "청록"
+    BLUE = "blue", "파랑"
+    PURPLE = "purple", "보라"
+    PINK = "pink", "분홍"
+    RED = "red", "빨강"
+
+
+class Group(models.Model):
+    """프로젝트 그룹 — 단계와 직교한 주제·도메인 묶음.
+
+    한 프로젝트가 여러 그룹에 속할 수 있음 (N:N).
+    """
+
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    color = models.CharField(max_length=20, choices=GroupColor.choices, default=GroupColor.SLATE)
+    projects = models.ManyToManyField(
+        "Project", related_name="groups", blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "그룹"
+        verbose_name_plural = "그룹"
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Evaluation(models.Model):

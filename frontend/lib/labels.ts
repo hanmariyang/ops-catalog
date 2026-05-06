@@ -1,4 +1,4 @@
-import type { Difficulty, PriorityCode, Stage, StatusCode, Tier } from "./api";
+import type { Difficulty, GroupColorCode, PriorityCode, Stage, StatusCode, Tier } from "./api";
 
 export const STAGE_LABEL: Record<Stage, string> = {
   1: "1단계 — 담당자 직접",
@@ -62,4 +62,55 @@ export const STATUS_LABEL: Record<StatusCode, string> = {
   in_progress: "진행 중",
   done: "완료",
   archived: "보관",
+};
+
+export const GROUP_COLOR_LABEL: Record<GroupColorCode, string> = {
+  slate: "회색",
+  orange: "주황",
+  amber: "황색",
+  green: "초록",
+  cyan: "청록",
+  blue: "파랑",
+  purple: "보라",
+  pink: "분홍",
+  red: "빨강",
+};
+
+// 그룹 뱃지용 — 작은 컬러 칩 (텍스트 + 배경)
+export const GROUP_BADGE: Record<GroupColorCode, string> = {
+  slate: "bg-slate-100 text-slate-700 border-slate-300",
+  orange: "bg-orange-100 text-orange-800 border-orange-300",
+  amber: "bg-amber-100 text-amber-800 border-amber-300",
+  green: "bg-green-100 text-green-800 border-green-300",
+  cyan: "bg-cyan-100 text-cyan-800 border-cyan-300",
+  blue: "bg-blue-100 text-blue-800 border-blue-300",
+  purple: "bg-purple-100 text-purple-800 border-purple-300",
+  pink: "bg-pink-100 text-pink-800 border-pink-300",
+  red: "bg-red-100 text-red-800 border-red-300",
+};
+
+// 그룹 dot — 4px 원형 (카드 좁은 공간용)
+export const GROUP_DOT: Record<GroupColorCode, string> = {
+  slate: "bg-slate-400",
+  orange: "bg-orange-500",
+  amber: "bg-amber-500",
+  green: "bg-green-500",
+  cyan: "bg-cyan-500",
+  blue: "bg-blue-500",
+  purple: "bg-purple-500",
+  pink: "bg-pink-500",
+  red: "bg-red-500",
+};
+
+// 그룹 카드 외곽 border (그룹 리스트의 카드 테두리용)
+export const GROUP_BORDER: Record<GroupColorCode, string> = {
+  slate: "border-slate-300",
+  orange: "border-orange-300",
+  amber: "border-amber-300",
+  green: "border-green-300",
+  cyan: "border-cyan-300",
+  blue: "border-blue-300",
+  purple: "border-purple-300",
+  pink: "border-pink-300",
+  red: "border-red-300",
 };

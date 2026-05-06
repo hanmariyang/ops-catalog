@@ -1,6 +1,25 @@
 # ops-catalog Project Instructions
 
-> 「교육운영실 프로젝트 카탈로그」 — 한마리양 워크스페이스의 별도 풀스택 프로젝트. EduOps/EduWorks 와 동일 패턴. 이 CLAUDE.md 가 본 프로젝트 작업의 1차 기준.
+> **1줄 요약**: 교육운영실 프로젝트 카탈로그 — Pocketman 라이브러리 + 단계 자동 산출 + 익명 read-only 공개
+> **상태**: 개발 중 (HM-26, v3 finalization)
+> **최종 정리**: 2026-05-04
+
+## 📌 빠른 참조
+
+| 항목 | 값 |
+|---|---|
+| 경로 | `projects/ops-catalog/` |
+| 기술 스택 | Django REST Framework (Python 3.11) + Next.js 15 (App Router, React 19) + PostgreSQL 16 |
+| 로컬 포트 | DB 5502 / Backend 8002 / Frontend 3002 |
+| GitHub | `hanmariyang/ops-catalog` (default `main`) |
+| 시작 방법 | `docker compose up -d` |
+| 외부 의존성 | 자체 PostgreSQL 인스턴스 (격리), 후속 SSO/auth |
+| 운영 환경 | Railway project `ops-catalog` @ sparta-ga 생성 (production env). **service 미배포 (2026-05-04 CLI 검증)** — 로컬 개발 단계. 본격 배포 시 EduOps 패턴 적용 예정 |
+| 자체 정책 | 본 문서 §데이터 원칙 / §공개 정책 / §PII / §작업 지침 |
+
+---
+
+「교육운영실 프로젝트 카탈로그」 — 한마리양 워크스페이스의 별도 풀스택 프로젝트. EduOps/EduWorks 와 동일 패턴. 이 CLAUDE.md 가 본 프로젝트 작업의 1차 기준.
 
 상위 컨텍스트는 한마리양 루트 `CLAUDE.md` 와 `deliverables/HM-26-pocketman-library-plan/v3-finalization.md` 참조.
 
@@ -42,10 +61,14 @@
 - 이름은 공개 동의 토글 (`name_public: bool`), 미동의 시 이니셜
 - seed/fixture 에 실제 이메일 박지 말 것
 
-## 배포 (Railway)
-- 단일 environment(production), 서비스 이름으로 test/prod 구분
-- 자동 migrate: `entrypoint.sh` 가 `migrate --noinput` 실행
-- 실서버 작업 시 사용자 명시 승인 필요 (EduOps 와 동일 원칙)
+## 배포 (Railway, 2026-05-04 CLI 검증)
+
+- Railway project `ops-catalog` @ `sparta-ga's Projects` (production environment) 생성됨
+- **service 미배포 — 현재 가동 중인 service 0개** (`railway variables` 의 cross-service URL 변수 없음). 로컬 개발 단계.
+- 본격 배포 시 EduOps 패턴 적용 예정:
+  - 단일 environment, 서비스 이름으로 test/prod 구분
+  - 자동 migrate: `entrypoint.sh` 가 `migrate --noinput` 실행
+  - 실서버 작업 시 사용자 명시 승인 필요 (EduOps 와 동일 원칙)
 
 ## 격리 헌장 (v3 D7)
 - Triforge 측에 데이터 자동 미러 금지 (§1)

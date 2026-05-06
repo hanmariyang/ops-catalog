@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { AuthBadge } from "@/components/AuthBadge";
 import "./globals.css";
@@ -31,12 +32,26 @@ export default function RootLayout({
         <header className="border-b border-slate-200 bg-white">
           <div className="px-3 sm:px-4 py-2 flex items-center justify-between">
             <div className="flex items-baseline gap-3 min-w-0">
-              <span className="text-[10px] font-bold text-haro-600 tracking-wider flex-shrink-0">
+              <Link href="/" className="text-[10px] font-bold text-haro-600 tracking-wider flex-shrink-0 hover:underline">
                 OPS-CATALOG
-              </span>
+              </Link>
               <h1 className="text-sm font-bold truncate">교육운영실 프로젝트 카탈로그</h1>
             </div>
-            <AuthBadge />
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link
+                href="/groups"
+                className="text-xs font-semibold text-slate-600 px-2 py-1 rounded hover:bg-slate-100 transition"
+              >
+                그룹
+              </Link>
+              <Link
+                href="/manage"
+                className="text-xs font-semibold bg-haro-500 text-white px-2.5 py-1 rounded hover:bg-haro-600 transition"
+              >
+                + 신규 추가
+              </Link>
+              <AuthBadge />
+            </div>
           </div>
         </header>
         <main className="overflow-hidden px-3 sm:px-4 py-2 min-h-0 grid">

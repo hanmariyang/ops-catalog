@@ -178,7 +178,11 @@ export function EditForm({ project, categories }: Props) {
         </Field>
       </div>
 
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-4 flex justify-between items-center gap-2">
+        <ArchiveButton
+          projectId={project.id}
+          isArchived={project.status === "archived"}
+        />
         <button
           type="submit"
           disabled={saving}
@@ -191,6 +195,72 @@ export function EditForm({ project, categories }: Props) {
         ⚠ 원문(제목·청사진·제안자·우선순위)은 immutable. 수정이 필요하면 Django admin 사용.
       </p>
     </form>
+  );
+}
+
+/**
+ * 보관 / 복구 버튼.
+ * soft delete — `status='archived'` 토글. hard delete 안 함 (D9 immutable 원칙).
+ */
+function ArchiveButton({
+  projectId,
+  isArchived,
+}: {
+  projectId: number;
+  isArchived: boolean;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  async function toggle() {
+    const targetStatus = isArchived ? "not_started" : "archived";
+    const action = isArchived ? "복구" : "보관";
+    if (!isArchived) {
+      const ok = confirm(
+        "이 항목을 보관함으로 옮길까요?\n\n칸반에서 숨겨지지만 영구 삭제되지는 않습니다.\n언제든 보관함에서 복구할 수 있어요.",
+      );
+      if (!ok) return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/projects/${projectId}/`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: targetStatus }),
+        },
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        alert(`${action} 실패 (${res.status}): ${text.slice(0, 200)}`);
+        return;
+      }
+      if (isArchived) {
+        router.refresh();
+      } else {
+        router.push("/?archived=1");
+      }
+    } catch (err) {
+      alert(`네트워크 오류: ${(err as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={busy}
+      className={
+        isArchived
+          ? "text-xs font-semibold px-3 py-2 rounded border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50 disabled:opacity-50"
+          : "text-xs font-semibold px-3 py-2 rounded border border-red-300 text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
+      }
+    >
+      {busy ? "처리 중…" : isArchived ? "↻ 복구 (보관 해제)" : "🗄 보관함으로"}
+    </button>
   );
 }
 

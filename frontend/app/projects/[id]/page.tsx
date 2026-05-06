@@ -8,8 +8,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getProject, listCategories } from "@/lib/api";
+import { getProject, listCategories, listGroups, listProjects } from "@/lib/api";
+import { DetailNav } from "@/components/DetailNav";
 import { EditForm } from "@/components/EditForm";
+import { GroupPicker } from "@/components/GroupPicker";
+import { MergePanel } from "@/components/MergePanel";
 import {
   DIFFICULTY_LABEL,
   PRIORITY_COLOR,
@@ -32,7 +35,11 @@ export default async function ProjectDetailPage({
   } catch {
     notFound();
   }
-  const categoriesRes = await listCategories();
+  const [categoriesRes, groupsRes, allProjectsRes] = await Promise.all([
+    listCategories(),
+    listGroups(),
+    listProjects(),
+  ]);
 
   return (
     <div className="max-w-4xl mx-auto overflow-y-auto">
@@ -53,8 +60,19 @@ export default async function ProjectDetailPage({
       </div>
       <h1 className="text-2xl font-bold mt-2 leading-snug">{p.title}</h1>
 
+      {/* sticky 섹션 네비 — 자식인 경우 우측에 메인 점프 칩 */}
+      <div className="mt-3">
+        <DetailNav
+          hasHistory={p.stage_transitions.length > 0}
+          mergedInto={p.merged_into}
+        />
+      </div>
+
       {/* 원문 박제 */}
-      <section className="mt-6 bg-white rounded-xl border border-slate-200 p-5">
+      <section
+        id="section-original"
+        className="mt-4 bg-white rounded-xl border border-slate-200 p-5 scroll-mt-16"
+      >
         <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-2">
           엑셀 원문 (IMMUTABLE)
         </div>
@@ -73,7 +91,10 @@ export default async function ProjectDetailPage({
       </section>
 
       {/* 평가·진행 */}
-      <section className="mt-4 bg-white rounded-xl border border-slate-200 p-5">
+      <section
+        id="section-mutable"
+        className="mt-4 bg-white rounded-xl border border-slate-200 p-5 scroll-mt-16"
+      >
         <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-2">
           평가·진행 (MUTABLE)
         </div>
@@ -88,11 +109,37 @@ export default async function ProjectDetailPage({
       </section>
 
       {/* 인라인 편집 폼 — 누구나 편집 가능 */}
-      <EditForm project={p} categories={categoriesRes.results} />
+      <div id="section-edit" className="scroll-mt-16">
+        <EditForm project={p} categories={categoriesRes.results} />
+      </div>
+
+      {/* 그룹 멤버십 — 클릭 토글 즉시 저장 */}
+      <div id="section-groups" className="scroll-mt-16">
+        <GroupPicker
+          projectId={p.id}
+          currentGroups={p.groups}
+          allGroups={groupsRes.results}
+        />
+      </div>
+
+      {/* 병합 (Merge) — 자식·부모 상태에 따라 다른 UI */}
+      <div id="section-merge" className="scroll-mt-16">
+        <MergePanel
+          projectId={p.id}
+          mergedInto={p.merged_into}
+          mergedChildren={p.merged_children}
+          candidates={allProjectsRes.results}
+          currentCategoryCode={p.category.code}
+          currentCategoryId={p.category.id}
+        />
+      </div>
 
       {/* 단계 변동 이력 */}
       {p.stage_transitions.length > 0 && (
-        <section className="mt-4 bg-white rounded-xl border border-slate-200 p-5">
+        <section
+          id="section-history"
+          className="mt-4 bg-white rounded-xl border border-slate-200 p-5 scroll-mt-16"
+        >
           <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-2">
             단계 변동 이력
           </div>

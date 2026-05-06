@@ -6,6 +6,7 @@ from django.utils.html import format_html
 from apps.catalog.models import (
     Category,
     Evaluation,
+    Group,
     Project,
     StageTransition,
 )
@@ -48,7 +49,7 @@ class ProjectAdmin(admin.ModelAdmin):
         "status",
         "owner",
     )
-    list_filter = ("stage", "category", "priority", "difficulty", "status", "deploy_intent")
+    list_filter = ("stage", "category", "priority", "difficulty", "status", "deploy_intent", "merged_into")
     search_fields = ("title", "description", "proposer", "proposer_email")
     readonly_fields = (
         "source_id",
@@ -96,6 +97,7 @@ class ProjectAdmin(admin.ModelAdmin):
                     "status",
                     "result_url",
                     "name_public",
+                    "merged_into",
                 ),
             },
         ),
@@ -129,6 +131,20 @@ class StageTransitionAdmin(admin.ModelAdmin):
     list_filter = ("from_stage", "to_stage")
     search_fields = ("project__title", "reason")
     readonly_fields = ("created_at",)
+
+
+@admin.register(Group)
+class GroupAdmin(admin.ModelAdmin):
+    list_display = ("name", "color", "project_count", "created_at")
+    list_filter = ("color",)
+    search_fields = ("name", "description")
+    filter_horizontal = ("projects",)
+    readonly_fields = ("created_at", "updated_at")
+
+    def project_count(self, obj):
+        return obj.projects.count()
+
+    project_count.short_description = "소속 프로젝트"
 
 
 @admin.register(Evaluation)

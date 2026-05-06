@@ -36,6 +36,47 @@ export type Stage = 1 | 2 | 3 | 4;
 export type PriorityCode = "P0" | "P1" | "P2" | "P3" | "unset";
 export type Difficulty = "low" | "mid" | "high" | "unset";
 export type StatusCode = "not_started" | "in_progress" | "done" | "archived";
+export type GroupColorCode =
+  | "slate"
+  | "orange"
+  | "amber"
+  | "green"
+  | "cyan"
+  | "blue"
+  | "purple"
+  | "pink"
+  | "red";
+
+export type GroupBadge = {
+  id: number;
+  name: string;
+  color: GroupColorCode;
+};
+
+export type GroupListItem = GroupBadge & {
+  description: string;
+  project_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GroupDetail = GroupListItem & {
+  member_projects: ProjectListItem[];
+};
+
+export type MergedChild = {
+  id: number;
+  source_id: number;
+  title: string;
+  proposer_display: string;
+  priority: PriorityCode;
+};
+
+export type MergedInto = {
+  id: number;
+  source_id: number;
+  title: string;
+};
 
 export type ProjectListItem = {
   id: number;
@@ -50,6 +91,8 @@ export type ProjectListItem = {
   stage: Stage;
   status: StatusCode;
   deploy_intent: boolean;
+  groups: GroupBadge[];
+  merged_children: MergedChild[];
 };
 
 export type Category = {
@@ -88,6 +131,9 @@ export type ProjectDetail = ProjectListItem & {
     note: string;
     created_at: string;
   }[];
+  groups: GroupBadge[];
+  merged_into: MergedInto | null;
+  merged_children: MergedChild[];
   created_at: string;
   updated_at: string;
 };
@@ -96,12 +142,20 @@ export async function listProjects(params?: {
   stage?: Stage;
   tier?: Tier;
   category?: number;
+  group?: number;
+  status?: StatusCode;
+  include_archived?: boolean;
+  search?: string;
 }): Promise<{ count: number; results: ProjectListItem[] }> {
   const qs = new URLSearchParams();
   if (params?.stage) qs.set("stage", String(params.stage));
   if (params?.tier) qs.set("tier", params.tier);
   if (params?.category) qs.set("category", String(params.category));
-  qs.set("page_size", "100");
+  if (params?.group) qs.set("group", String(params.group));
+  if (params?.status) qs.set("status", params.status);
+  if (params?.include_archived) qs.set("include_archived", "1");
+  if (params?.search?.trim()) qs.set("search", params.search.trim());
+  qs.set("page_size", "200");
   return apiFetch(`/api/v1/projects/?${qs.toString()}`);
 }
 
@@ -111,4 +165,12 @@ export async function getProject(id: number): Promise<ProjectDetail> {
 
 export async function listCategories(): Promise<{ count: number; results: Category[] }> {
   return apiFetch(`/api/v1/categories/`);
+}
+
+export async function listGroups(): Promise<{ count: number; results: GroupListItem[] }> {
+  return apiFetch(`/api/v1/groups/?page_size=200`);
+}
+
+export async function getGroup(id: number): Promise<GroupDetail> {
+  return apiFetch(`/api/v1/groups/${id}/`);
 }
